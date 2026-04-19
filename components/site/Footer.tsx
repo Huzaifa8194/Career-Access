@@ -8,7 +8,7 @@ export function Footer() {
       <section className="mx-auto max-w-6xl px-5 lg:px-8 py-14">
         <div className="rounded-xl border border-line bg-gradient-to-br from-primary to-[#152a66] text-white p-8 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-[var(--shadow-elevated)]">
           <div className="max-w-xl">
-            <h2 className="text-[26px] sm:text-[28px] font-semibold tracking-tight leading-tight">
+            <h2 className="text-[26px] sm:text-[28px] font-semibold tracking-tight leading-tight text-white">
               Start your journey today.
             </h2>
             <p className="mt-2 text-white/80 text-[15px] leading-6">

@@ -180,28 +180,52 @@ function HeroAside() {
 }
 
 function TrustStrip() {
-  const partners = [
-    "MA Workforce Board",
-    "Bunker Hill CC",
-    "YearUp",
-    "IBEW Local 103",
-    "Year Up",
-    "JFYNetWorks",
+  const partners: { name: string; mark: string }[] = [
+    { name: "MA Workforce Board", mark: "WB" },
+    { name: "Bunker Hill CC", mark: "BH" },
+    { name: "Year Up", mark: "YU" },
+    { name: "IBEW Local 103", mark: "IB" },
+    { name: "JFYNetWorks", mark: "JF" },
   ];
   return (
-    <section className="border-y border-line bg-white/60">
-      <div className="mx-auto max-w-6xl px-5 lg:px-8 py-6 flex flex-wrap items-center gap-x-10 gap-y-3">
-        <span className="text-[12px] uppercase tracking-wider text-ink-subtle">
-          Trusted partners
-        </span>
-        {partners.map((p) => (
-          <span
-            key={p}
-            className="text-[13px] font-medium text-ink-muted tracking-tight"
-          >
-            {p}
-          </span>
-        ))}
+    <section
+      className="border-y border-line bg-white"
+      aria-labelledby="trusted-partners-heading"
+    >
+      <div className="mx-auto max-w-6xl px-5 lg:px-8 py-10 sm:py-12">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 max-w-2xl">
+          <div>
+            <p
+              id="trusted-partners-heading"
+              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary"
+            >
+              Trusted partners
+            </p>
+            <p className="mt-2 text-[15px] sm:text-[16px] text-ink-muted leading-snug">
+              Organizations we work with to connect adults to education and
+              training pathways.
+            </p>
+          </div>
+        </div>
+        <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          {partners.map((p) => (
+            <li key={p.name}>
+              <div className="group h-full rounded-lg border border-line bg-canvas/80 px-4 py-4 shadow-[var(--shadow-card)] transition-colors hover:border-primary/25 hover:bg-white">
+                <div className="flex items-start gap-3">
+                  <span
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-white text-[11px] font-semibold tracking-tight text-primary tabular"
+                    aria-hidden
+                  >
+                    {p.mark}
+                  </span>
+                  <span className="text-[13px] font-medium text-ink leading-snug pt-0.5">
+                    {p.name}
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -295,22 +319,27 @@ function HowItWorksPreview() {
           title="A clear, structured path — without the runaround"
           copy="Built for adults who can't afford a confusing process. Three deliberate steps; one human in your corner."
         />
-        <div className="mt-10 grid gap-8 md:grid-cols-3">
+        <ol className="mt-10 grid grid-cols-1 md:grid-cols-3 md:gap-0 border border-line rounded-lg bg-canvas/50 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-line">
           {steps.map((s) => (
-            <div key={s.n} className="relative">
-              <div className="text-[12px] font-semibold uppercase tracking-wider text-primary">
-                Step {s.n}
+            <li key={s.n} className="flex h-full min-h-0">
+              <div className="flex flex-1 flex-col px-5 py-8 sm:px-6 lg:px-8">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary tabular-nums">
+                  Step {s.n}
+                </span>
+                <h3 className="mt-3 text-[20px] font-semibold tracking-tight text-ink">
+                  {s.title}
+                </h3>
+                <p className="mt-2 flex-1 text-[14px] text-ink-muted leading-6">
+                  {s.copy}
+                </p>
+                <div
+                  className="mt-8 h-0.5 w-12 shrink-0 rounded-full bg-primary/35"
+                  aria-hidden
+                />
               </div>
-              <h3 className="mt-2 text-[20px] font-semibold tracking-tight">
-                {s.title}
-              </h3>
-              <p className="mt-2 text-[14px] text-ink-muted leading-6 max-w-sm">
-                {s.copy}
-              </p>
-              <div className="mt-5 h-px w-12 bg-primary/30" />
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
         <div className="mt-12 flex justify-end">
           <Link
             href="/how-it-works"

@@ -50,11 +50,11 @@ export default function ParticipantDashboard() {
             <span className="inline-flex items-center gap-2 text-[12px] uppercase tracking-wider text-white/80">
               <Sparkle size={14} /> Your pathway
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-2.5 py-1 text-[12px]">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-2.5 py-1 text-[12px] text-white">
               <span className="h-1.5 w-1.5 rounded-full bg-action" /> On track
             </span>
           </div>
-          <h2 className="mt-3 text-[26px] sm:text-[30px] font-semibold tracking-tight leading-tight">
+          <h2 className="mt-3 text-[26px] sm:text-[30px] font-semibold tracking-tight leading-tight text-white">
             {s.pathway}
           </h2>
           <p className="mt-1.5 text-white/80 text-[14px] leading-6 max-w-md">
@@ -70,7 +70,7 @@ export default function ParticipantDashboard() {
                 <Clock size={12} /> Due {s.nextStepDue}
               </span>
             </div>
-            <p className="mt-1.5 text-[18px] font-semibold tracking-tight">
+            <p className="mt-1.5 text-[18px] font-semibold tracking-tight text-white">
               {s.nextStep}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -320,7 +320,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
       <div className="text-[11px] uppercase tracking-wider text-white/70">
         {label}
       </div>
-      <div className="mt-0.5 text-[15px] font-semibold tracking-tight">
+      <div className="mt-0.5 text-[15px] font-semibold tracking-tight text-white">
         {value}
       </div>
     </div>
