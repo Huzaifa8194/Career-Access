@@ -167,7 +167,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 pt-20 pb-10 sm:pb-12">
         <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] items-start">
           <div>
             <SectionHeader

@@ -4,8 +4,8 @@ import { LinkButton } from "@/components/ui/Button";
 
 export function Footer() {
   return (
-    <footer className="mt-24 border-t border-line bg-white">
-      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-14">
+    <footer className="mt-10 border-t border-line bg-white sm:mt-12">
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-10 sm:py-12">
         <div className="rounded-xl border border-line bg-gradient-to-br from-primary to-[#152a66] text-white p-8 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-[var(--shadow-elevated)]">
           <div className="max-w-xl">
             <h2 className="text-[26px] sm:text-[28px] font-semibold tracking-tight leading-tight text-white">

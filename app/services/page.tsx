@@ -127,7 +127,7 @@ export default function ServicesPage() {
       </section>
 
       <section className="bg-white border-y border-line">
-        <div className="mx-auto max-w-6xl px-5 lg:px-8 py-16">
+        <div className="mx-auto max-w-6xl px-5 lg:px-8 pt-16 pb-10 sm:pb-12">
           <SectionHeader
             eyebrow="What's included"
             title="Every participant gets the same baseline of support"

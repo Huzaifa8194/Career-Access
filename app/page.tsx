@@ -551,7 +551,7 @@ function Stories() {
   ];
   return (
     <section className="bg-white border-t border-line">
-      <div className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
+      <div className="mx-auto max-w-6xl px-5 lg:px-8 pt-20 pb-10 sm:pb-12">
         <SectionHeader
           eyebrow="In their words"
           title="Built around real participants"

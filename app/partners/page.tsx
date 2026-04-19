@@ -156,7 +156,7 @@ export default function PartnersPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 pt-20 pb-10 sm:pb-12">
         <SectionHeader
           eyebrow="Reporting"
           title="The metrics partners ask for, in one place"

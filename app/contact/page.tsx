@@ -17,7 +17,7 @@ export default function ContactPage() {
         description="Our team responds to every inquiry within two business days. For urgent help, request a call and we'll prioritize."
       />
 
-      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-16">
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 pt-16 pb-10 sm:pb-12">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] items-start">
           <Card className="p-6 sm:p-8">
             {submitted ? (

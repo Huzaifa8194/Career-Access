@@ -64,7 +64,7 @@ export default function GetStartedPage() {
         description="Three ways in. All free. All lead to the same outcome — a real plan and a real advisor."
       />
 
-      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-16 sm:py-20">
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 pt-16 pb-10 sm:pt-20 sm:pb-12">
         <div className="grid gap-5 lg:grid-cols-3">
           {paths.map((p) => (
             <Card
