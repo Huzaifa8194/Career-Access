@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { SiteShell } from "@/components/site/SiteShell";
 import { SectionHeader } from "@/components/site/SectionHeader";
@@ -14,6 +15,7 @@ import {
   Sparkle,
   Check,
   Users,
+  Clock,
 } from "@/components/icons";
 
 export default function HomePage() {
@@ -34,65 +36,90 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden surface-hero">
-      <div aria-hidden className="absolute inset-0 grid-bg opacity-60" />
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-5 lg:px-8 pt-12 pb-16 sm:pt-16 sm:pb-20 md:pt-20 lg:pt-24 lg:pb-24">
-        <div className="grid gap-8 md:gap-10 lg:gap-12 lg:grid-cols-[1.35fr_1fr] lg:items-start">
+      <div aria-hidden className="absolute inset-0 grid-bg opacity-50 max-md:opacity-40" />
+      {/* Mobile: soft bottom fade into next section */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-canvas to-transparent md:hidden"
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-5 lg:px-8 pt-8 pb-12 sm:pt-12 sm:pb-16 md:pt-16 md:pb-20 lg:pt-24 lg:pb-24">
+        <div className="grid gap-6 sm:gap-8 md:gap-10 lg:gap-12 lg:grid-cols-[1.35fr_1fr] lg:items-start">
           <div className="min-w-0">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-white px-2.5 py-1.5 text-[11px] sm:text-[12px] text-ink-muted shadow-[var(--shadow-card)]">
-              <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-action" />
-              <span className="leading-snug">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line/90 bg-white/95 px-3 py-2 text-[11px] sm:text-[12px] text-ink-muted shadow-sm ring-1 ring-black/[0.04]">
+              <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-action shadow-[0_0_0_3px_rgba(74,222,128,0.25)]" />
+              <span className="leading-snug font-medium">
                 Free, confidential support · Statewide
               </span>
             </div>
-            <h1 className="mt-4 sm:mt-5 text-[clamp(1.875rem,5.2vw,3.25rem)] leading-[1.05] font-semibold tracking-[-0.02em]">
+            <h1 className="mt-5 sm:mt-6 text-[clamp(1.875rem,6vw,3.25rem)] leading-[1.06] font-semibold tracking-[-0.025em] text-balance">
               Your Next Step
               <br />
               <span className="text-primary">Starts Here</span>
             </h1>
-            <p className="mt-4 sm:mt-5 max-w-xl text-[15px] sm:text-[16px] md:text-[17px] leading-7 text-ink-muted">
+            <p className="mt-4 sm:mt-5 max-w-xl text-[15px] sm:text-[16px] md:text-[17px] leading-relaxed text-ink-muted">
               Get free support to enroll in college, job training, or
               apprenticeship programs.
             </p>
-            <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row sm:flex-wrap gap-2.5 sm:gap-3">
-              <LinkButton
-                href="/apply"
-                size="lg"
-                variant="primary"
-                className="w-full sm:w-auto justify-center min-h-12"
-              >
-                Apply Now
-                <ArrowRight size={16} />
-              </LinkButton>
-              <LinkButton
-                href="/refer"
-                size="lg"
-                variant="action"
-                className="w-full sm:w-auto justify-center min-h-12"
-              >
-                Refer Someone
-              </LinkButton>
-              <LinkButton
-                href="/book"
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto justify-center min-h-12"
-              >
-                Book an Advising Call
-              </LinkButton>
+
+            {/* Mobile: actions grouped in one elevated panel */}
+            <div className="mt-7 max-md:rounded-2xl max-md:border max-md:border-line/80 max-md:bg-white max-md:p-3 max-md:shadow-[var(--shadow-elevated)] md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3 md:gap-3">
+                <LinkButton
+                  href="/apply"
+                  size="lg"
+                  variant="primary"
+                  className="w-full sm:w-auto justify-center min-h-[3rem] shadow-sm"
+                >
+                  Apply Now
+                  <ArrowRight size={16} />
+                </LinkButton>
+                <LinkButton
+                  href="/refer"
+                  size="lg"
+                  variant="action"
+                  className="w-full sm:w-auto justify-center min-h-[3rem] shadow-sm"
+                >
+                  Refer Someone
+                </LinkButton>
+                <LinkButton
+                  href="/book"
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:w-auto justify-center min-h-[3rem] bg-white"
+                >
+                  Book an Advising Call
+                </LinkButton>
+              </div>
             </div>
 
-            <div className="mt-8 sm:mt-10 max-w-xl lg:max-w-none">
+            <div className="mt-6 sm:mt-9 max-w-xl lg:max-w-none">
               <p className="sr-only">Key service metrics</p>
-              <div className="rounded-xl border border-line bg-white shadow-[var(--shadow-card)] overflow-hidden">
-                <dl className="grid grid-cols-1 divide-y divide-line sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:divide-line">
-                  <HeroStat value="7 min" label="To apply" />
-                  <HeroStat value="2 days" label="Avg. response" />
-                  <HeroStat value="1:1" label="Advisor support" />
+              <p className="mb-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle sm:mb-3">
+                At a glance
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[var(--shadow-card)] ring-1 ring-black/[0.03]">
+                <dl className="grid grid-cols-3 divide-x divide-line">
+                  <HeroStat
+                    value="7 min"
+                    label="To apply"
+                    icon={<Compass size={15} strokeWidth={1.7} />}
+                  />
+                  <HeroStat
+                    value="2 days"
+                    label="Avg. response"
+                    icon={<Clock size={15} strokeWidth={1.7} />}
+                  />
+                  <HeroStat
+                    value="1:1"
+                    label="Advisor support"
+                    labelCompact="Advisor"
+                    icon={<Users size={15} strokeWidth={1.7} />}
+                  />
                 </dl>
               </div>
             </div>
           </div>
-          <div className="min-w-0 lg:pt-1">
+          <div className="min-w-0 lg:pt-1 max-md:pt-1">
             <HeroAside />
           </div>
         </div>
@@ -101,13 +128,38 @@ function Hero() {
   );
 }
 
-function HeroStat({ value, label }: { value: string; label: string }) {
+function HeroStat({
+  value,
+  label,
+  labelCompact,
+  icon,
+}: {
+  value: string;
+  label: string;
+  labelCompact?: string;
+  icon?: ReactNode;
+}) {
   return (
-    <div className="px-4 py-4 sm:px-5 sm:py-5 min-h-[4.5rem] sm:min-h-0 flex flex-col justify-center">
-      <dt className="text-[11px] sm:text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
-        {label}
+    <div className="flex min-h-[5.75rem] flex-col items-center justify-center px-1.5 py-3.5 text-center sm:min-h-0 sm:items-stretch sm:px-5 sm:py-5 sm:text-left">
+      {icon && (
+        <div
+          className="mb-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-primary/[0.09] to-primary/[0.04] text-primary ring-1 ring-primary/10 sm:mb-0 sm:hidden"
+          aria-hidden
+        >
+          {icon}
+        </div>
+      )}
+      <dt className="text-[9px] font-semibold uppercase leading-tight tracking-[0.08em] text-ink-subtle sm:text-[12px] sm:leading-normal sm:tracking-[0.12em]">
+        {labelCompact ? (
+          <>
+            <span className="sm:hidden">{labelCompact}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
       </dt>
-      <dd className="mt-1.5 text-[22px] sm:text-[24px] font-semibold tracking-tight tabular-nums text-ink leading-none">
+      <dd className="mt-1 text-[1.125rem] font-semibold leading-none tracking-tight text-ink tabular-nums sm:mt-1.5 sm:text-[24px]">
         {value}
       </dd>
     </div>
@@ -116,7 +168,7 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 
 function HeroAside() {
   return (
-    <Card className="p-5 sm:p-6 relative">
+    <Card className="relative p-5 sm:p-6 max-md:rounded-2xl max-md:border-primary/10 max-md:shadow-[var(--shadow-elevated)]">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[12px] uppercase tracking-wider text-ink-subtle">
