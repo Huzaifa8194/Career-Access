@@ -1,0 +1,682 @@
+@142876398858337 
+We already have page visuals/wireframes to guide the design direction.
+
+We need:
+1. Homepage / landing page implementation
+2. Page templates for How It Works, Services, For Partners, Get Started, Contact
+3. Portal MVP screens
+4. Participant intake flow
+5. Participant dashboard
+6. Advisor dashboard
+7. Basic reporting/admin screen
+8. Mobile-responsive implementation
+
+## Priority
+We want a fast first sprint focused on:
+- landing page
+- intake flow
+- participant dashboard
+- advisor dashboard
+- basic reporting
+
+## Ideal freelancer
+Looking for someone who has:
+- strong UI/UX judgment
+- experience building polished responsive websites
+- experience with dashboard/portal interfaces
+- ability to move fast without creating junk
+- good communication and ability to follow a clear direction
+
+Bonus if you have experience with:
+- education, workforce, nonprofit, or public-sector websites
+- intake forms / workflow systems
+- portal or case-management-style interfaces
+-
+
+We are looking for a strong web designer/developer to build a new dedicated microsite and portal MVP for a serious adult education / workforce pathways initiative.
+
+This is not a generic marketing website. It needs to look credible for:
+- adult learners
+- referral partners
+- public-sector / grant-facing audiences
+- future program operations
+
+We already have an existing company website, but we do not want to modify it for this project. We want a new site or microsite with a clean public-facing experience plus a lightweight portal.
+
+## Scope of Work
+
+### Public-facing site
+Build a clean, professional microsite with these pages:
+- Home
+- How It Works
+- Services
+- For Partners
+- Get Started
+- Contact
+
+The site should communicate:
+- adult pathways to college, training, and apprenticeship
+- guided support from intake to enrollment
+- services such as admissions support, FAFSA/financial aid guidance, short-term training pathways, apprenticeship advising, and enrollment follow-through
+- partner/referral pathways for community organizations
+
+### Portal MVP
+Build a lightweight but believable portal with 3 user roles:
+- Participant
+- Advisor/Counselor
+- Admin
+
+#### Participant features
+- registration/login
+- intake / eligibility questionnaire
+- dashboard with pathway, next steps, outstanding tasks, reminders
+- checklist / task flow
+- document upload
+- appointment request
+- messages / reminders
+
+#### Advisor features
+- participant pipeline dashboard
+- participant list by stage
+- participant profile with intake, notes, documents, and milestone tracking
+- risk flags for stalled participants
+- follow-up logging
+
+#### Admin features
+- reporting dashboard
+- participant counts by stage
+- pathway breakdown
+- referral source breakdown
+- advisor assignment
+- basic content/task management
+
+## Workflow logic
+Participants should be routed into one of 4 tracks:
+1. College + FAFSA
+2. Short-term training
+3. Apprenticeship / pre-apprenticeship
+4. GED/HSE + transition planning
+
+## Design direction
+The site and portal must feel:
+- clean
+- serious
+- trustworthy
+- adult learner focused
+- public-sector / workforce credible
+- modern but not flashy
+- mobile-friendly
+- accessible
+
+Please avoid:
+- startup gimmicks
+- cartoonish nonprofit design
+- overdesigned animations
+- generic corporate filler
+- unnecessary complexity
+
+## Deliverables
+We already have page visuals/wireframes to guide the design direction.
+
+We need:
+1. Homepage / landing page implementation
+2. Page templates for How It Works, Services, For Partners, Get Started, Contact
+3. Portal MVP screens
+4. Participant intake flow
+5. Participant dashboard
+6. Advisor dashboard
+7. Basic reporting/admin screen
+8. Mobile-responsive implementation
+
+## Priority
+We want a fast first sprint focused on:
+- landing page
+- intake flow
+- participant dashboard
+- advisor dashboard
+- basic reporting
+
+## Ideal freelancer
+Looking for someone who has:
+- strong UI/UX judgment
+- experience building polished responsive websites
+- experience with dashboard/portal interfaces
+- ability to move fast without creating junk
+- good communication and ability to follow a clear direction
+
+Bonus if you have experience with:
+- education, workforce, nonprofit, or public-sector websites
+- intake forms / workflow systems
+- portal or case-management-style interfaces
+
+## To apply
+Please send:
+- 3–5 relevant examples of websites or dashboards you’ve built
+- a short note on how you would approach this project
+- your estimated timeline for first sprint delivery
+- your preferred stack / platform
+
+This project needs someone who can produce something that looks credible, functional, and real — not just a pretty homepage.
+
+Color System (Career Access Hub)
+Primary Colors (matches logo)
+
+Deep Blue (Primary)
+•	Hex: #1F3A8A
+•	Use for:
+•	headings
+•	buttons (primary)
+•	nav bar
+•	key accents
+
+⸻
+
+Green (Secondary / Action)
+•	Hex: #4CAF50
+•	Use for:
+•	highlights
+•	success states
+•	secondary buttons
+•	icons
+
+⸻
+
+Neutral Colors
+
+Dark Text
+•	Hex: #1F2937
+•	Body text
+
+Light Background
+•	Hex: #F8FAFC
+•	Page background
+
+White
+•	Hex: #FFFFFF
+•	Cards, forms
+
+Border / Divider
+•	Hex: #E5E7EB
+
+⸻
+
+Button System
+
+Primary Button
+•	Background: #1F3A8A
+•	Text: white
+•	Hover: slightly darker blue
+
+Secondary Button
+•	Background: #4CAF50
+•	Text: white
+
+Outline Button
+•	Border: blue
+•	Text: blue
+•	Background: white
+
+⸻
+
+Status Colors (for dashboard)
+•	New / Info → Blue (#1F3A8A)
+•	In Progress → Amber (#F59E0B)
+•	Success / Enrolled → Green (#4CAF50)
+•	Closed / Inactive → Gray (#9CA3AF)
+
+⸻
+
+Font System
+
+Primary Font (use this)
+
+Inter
+•	clean
+•	modern
+•	widely used in SaaS and gov-style systems
+•	excellent readability
+
+⸻
+
+Fallback (if needed)
+•	Open Sans
+•	Roboto
+
+⸻
+
+Typography Scale
+
+H1 (Main headings)
+•	32–40px
+•	Bold
+
+H2 (Section headers)
+•	24–28px
+•	Semi-bold
+
+H3
+•	18–20px
+•	Medium
+
+Body
+•	14–16px
+•	Regular
+
+Labels / Form text
+•	12–14px
+
+⸻
+
+UI Styling Rules (critical)
+•	Use white cards on light gray background
+•	Keep forms clean and spaced
+•	Use blue for structure, green for action
+•	Avoid more than 2–3 colors total
+•	No gradients unless subtle
+•	No heavy shadows
+
+⸻
+
+What this achieves
+•	aligns with your existing brand
+•	looks credible for government / grant reviewers
+•	feels like a real system, not a side project
+•	easy for developer to implement fast
+
+
+Here is the copy
+Career Access Hub – Exact Screen Copy
+
+⸻
+
+1. Landing Page
+
+Headline
+
+Your Next Step Starts Here
+
+Subheadline
+
+Get free support to enroll in college, job training, or apprenticeship programs.
+
+Primary Buttons
+•	Apply Now
+•	Refer Someone
+•	Book an Advising Call
+
+⸻
+
+Section: How It Works
+
+1. Apply
+Tell us about your background and goals.
+
+2. Get Support
+We help with applications, financial aid, and next steps.
+
+3. Move Forward
+Enroll in a program that leads to real career opportunities.
+
+⸻
+
+Section: What We Help With
+•	College applications
+•	Job training programs
+•	Apprenticeships
+•	FAFSA & financial aid support
+•	Career guidance
+
+⸻
+
+Section: Who This Is For
+•	Adults looking to return to school or training
+•	Individuals exploring new career paths
+•	First-generation college applicants
+•	Anyone needing guidance navigating education or workforce options
+
+⸻
+
+Footer CTA
+
+Start your journey today.
+
+Button: Apply Now
+
+⸻
+
+⸻
+
+2. Eligibility Screener
+
+Title
+
+Let’s See If We Can Help
+
+Subtitle
+
+Answer a few quick questions to get started.
+
+⸻
+
+Questions
+
+How old are you?
+(dropdown)
+
+What is your ZIP code?
+(input)
+
+What is the highest level of education you’ve completed?
+(dropdown)
+
+What are you most interested in?
+•	College
+•	Job Training / Certificate
+•	Apprenticeship
+•	Not Sure
+
+What is your household income range?
+(dropdown)
+
+Are you the first in your family to attend college?
+•	Yes
+•	No
+•	Not Sure
+
+⸻
+
+Button
+
+Continue
+
+⸻
+
+⸻
+
+3. Full Intake Form
+
+Title
+
+Complete Your Application
+
+Subtitle
+
+Provide your information so we can support you.
+
+⸻
+
+Section: Personal Information
+
+First Name
+Last Name
+Email Address
+Mobile Phone
+Preferred Contact Method
+Street Address
+City
+State
+ZIP Code
+
+⸻
+
+Section: Education
+
+What is the highest level of education you’ve completed?
+(dropdown)
+
+Are you currently enrolled in school?
+•	Yes
+•	No
+
+What are you most interested in?
+•	Associate Degree
+•	Bachelor’s Degree
+•	Certificate / Training
+•	Apprenticeship
+•	Not Sure
+
+⸻
+
+Section: Employment
+
+Are you currently employed?
+•	Yes
+•	No
+
+Job Title (if applicable)
+(input)
+
+⸻
+
+Section: Support Needed
+
+Select all that apply:
+•	FAFSA / Financial Aid Assistance
+•	College Application Help
+•	Apprenticeship Application Help
+•	Career Advising
+•	Resume / Interview Help
+•	Transportation Support
+•	Childcare Support
+•	Internet / Device Access
+
+⸻
+
+Section: Upload Documents
+
+Upload any documents (optional)
+Button: Upload Files
+
+⸻
+
+Section: Consent
+
+☐ I confirm the information provided is accurate
+☐ I consent to be contacted by program staff
+☐ I agree to allow my information to be shared with partner organizations for support services
+
+⸻
+
+Buttons
+•	Back
+•	Submit Application
+
+⸻
+
+⸻
+
+4. Book Advising Call
+
+Title
+
+Schedule an Advising Call
+
+Subtitle
+
+Choose a time to speak with an advisor.
+
+⸻
+
+Section
+
+Select a Date and Time
+
+⸻
+
+Fields
+
+Appointment Type
+(dropdown)
+
+Time Zone
+(default Eastern Time)
+
+⸻
+
+Button
+
+Confirm Appointment
+
+⸻
+
+⸻
+
+5. Partner Referral Form
+
+Title
+
+Refer Someone to the Program
+
+Subtitle
+
+Help someone take the next step.
+
+⸻
+
+Section: Your Information
+
+Your Name
+Organization Name
+Email Address
+Phone Number
+
+⸻
+
+Section: Applicant Information
+
+Applicant First Name
+Applicant Last Name
+Applicant Email
+Applicant Phone
+ZIP Code
+
+⸻
+
+Section: Referral Details
+
+Program Interest
+(dropdown)
+
+Urgency
+(dropdown)
+
+Reason for Referral
+(text box)
+
+⸻
+
+Consent
+
+☐ I confirm I have permission to refer this individual
+
+⸻
+
+Button
+
+Submit Referral
+
+⸻
+
+⸻
+
+6. Confirmation Page
+
+Title
+
+Thank You!
+
+Message
+
+Your application has been submitted.
+
+⸻
+
+What Happens Next
+•	Our team will review your information
+•	We will contact you within 2–3 business days
+•	You can schedule an advising call now if you haven’t already
+
+⸻
+
+Buttons
+•	Book an Advising Call
+•	Return to Home
+
+⸻
+
+⸻
+
+7. Admin Dashboard (Overview)
+
+Title
+
+Dashboard Overview
+
+⸻
+
+Metrics Cards
+•	Total Applicants
+•	New This Week
+•	Calls Scheduled
+•	Enrolled
+
+⸻
+
+Section Title
+
+Applicants by Status
+
+⸻
+
+Table Headers
+•	Name
+•	Status
+•	Source
+•	Date Submitted
+•	Assigned To
+
+⸻
+
+⸻
+
+8. Applicant Profile (Admin)
+
+Title
+
+Applicant Profile
+
+⸻
+
+Sections
+
+Contact Information
+•	Email
+•	Phone
+•	Address
+
+Education & Goals
+•	Education level
+•	Program interest
+•	Career goals
+
+Support Needs
+•	selected support services
+
+Referral Source
+•	Partner / Direct
+
+⸻
+
+Tabs
+•	Overview
+•	Notes & History
+•	Documents
+
+⸻
+
+Actions
+•	Edit Status
+•	Add Note
+•	Assign Staff
+
+

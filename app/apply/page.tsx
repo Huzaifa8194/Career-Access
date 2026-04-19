@@ -51,8 +51,8 @@ export default function ApplyEligibilityPage() {
       }
     >
       <FormHeader
-        title="Let's see if we can help."
-        subtitle="Answer a few quick questions so we can route your application to the right pathway and advisor."
+        title="Let's See If We Can Help"
+        subtitle="Answer a few quick questions to get started."
       />
 
       <form
@@ -64,7 +64,7 @@ export default function ApplyEligibilityPage() {
       >
         <FormSection title="About you">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Age" required htmlFor="el-age">
+            <Field label="How old are you?" required htmlFor="el-age">
               <Select id="el-age" required defaultValue="">
                 <option value="" disabled>
                   Select age range
@@ -76,7 +76,7 @@ export default function ApplyEligibilityPage() {
                 <option>55+</option>
               </Select>
             </Field>
-            <Field label="ZIP code" required htmlFor="el-zip">
+            <Field label="What is your ZIP code?" required htmlFor="el-zip">
               <Input
                 id="el-zip"
                 required
@@ -87,7 +87,7 @@ export default function ApplyEligibilityPage() {
             </Field>
           </div>
           <Field
-            label="Highest level of education"
+            label="What is the highest level of education you've completed?"
             required
             htmlFor="el-edu"
           >
@@ -107,13 +107,13 @@ export default function ApplyEligibilityPage() {
         </FormSection>
 
         <FormSection
-          title="What you're interested in"
+          title="What are you most interested in?"
           description="Pick the closest fit. You can change your mind during intake."
         >
           <div className="grid gap-3 sm:grid-cols-2">
             {[
               { v: "College", d: "Associate or bachelor's degree" },
-              { v: "Job Training", d: "Short-term certification" },
+              { v: "Job Training / Certificate", d: "Short-term certification" },
               { v: "Apprenticeship", d: "Earn while you learn" },
               { v: "Not Sure", d: "I'd like an advisor to help me choose" },
             ].map((o) => (
@@ -133,7 +133,7 @@ export default function ApplyEligibilityPage() {
 
         <FormSection title="A bit more context">
           <Field
-            label="Household income range"
+            label="What is your household income range?"
             hint="Used only to check program eligibility."
             htmlFor="el-income"
             required

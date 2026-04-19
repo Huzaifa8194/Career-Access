@@ -62,8 +62,8 @@ export default function BookPage() {
       }
     >
       <FormHeader
-        title="Book an advising call."
-        subtitle="Free, 30 minutes. Bring questions — we'll bring options. No commitment to apply."
+        title="Schedule an Advising Call"
+        subtitle="Choose a time to speak with an advisor."
       />
 
       <form
@@ -75,10 +75,10 @@ export default function BookPage() {
       >
         <FormSection title="Your details">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Full name" required htmlFor="b-name">
+            <Field label="Full Name" required htmlFor="b-name">
               <Input id="b-name" required />
             </Field>
-            <Field label="Email" required htmlFor="b-email">
+            <Field label="Email Address" required htmlFor="b-email">
               <Input id="b-email" type="email" required />
             </Field>
           </div>
@@ -86,7 +86,7 @@ export default function BookPage() {
             <Field label="Phone" htmlFor="b-phone">
               <Input id="b-phone" type="tel" />
             </Field>
-            <Field label="Appointment type" required htmlFor="b-type">
+            <Field label="Appointment Type" required htmlFor="b-type">
               <Select id="b-type" required defaultValue="">
                 <option value="" disabled>
                   Select one
@@ -100,7 +100,7 @@ export default function BookPage() {
           </div>
         </FormSection>
 
-        <FormSection title="Pick a date and time">
+        <FormSection title="Select a Date and Time">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Date" required htmlFor="b-date">
               <Input
@@ -112,12 +112,12 @@ export default function BookPage() {
                 required
               />
             </Field>
-            <Field label="Timezone" required htmlFor="b-tz">
+            <Field label="Time Zone" required htmlFor="b-tz">
               <Select id="b-tz" defaultValue="ET" required>
-                <option value="ET">Eastern (ET)</option>
-                <option value="CT">Central (CT)</option>
-                <option value="MT">Mountain (MT)</option>
-                <option value="PT">Pacific (PT)</option>
+                <option value="ET">Eastern Time (ET)</option>
+                <option value="CT">Central Time (CT)</option>
+                <option value="MT">Mountain Time (MT)</option>
+                <option value="PT">Pacific Time (PT)</option>
               </Select>
             </Field>
           </div>
@@ -160,7 +160,7 @@ export default function BookPage() {
             {time ? `Selected: ${date} at ${time} ET` : "Pick a time slot to continue"}
           </span>
           <Button type="submit" size="lg" disabled={!time}>
-            Confirm appointment <ArrowRight size={16} />
+            Confirm Appointment <ArrowRight size={16} />
           </Button>
         </div>
       </form>

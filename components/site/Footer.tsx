@@ -9,7 +9,7 @@ export function Footer() {
         <div className="rounded-xl border border-line bg-gradient-to-br from-primary to-[#152a66] text-white p-8 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-[var(--shadow-elevated)]">
           <div className="max-w-xl">
             <h2 className="text-[26px] sm:text-[28px] font-semibold tracking-tight leading-tight">
-              Start your journey today
+              Start your journey today.
             </h2>
             <p className="mt-2 text-white/80 text-[15px] leading-6">
               It takes about 7 minutes to apply. A real person will follow up
@@ -18,7 +18,7 @@ export function Footer() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <LinkButton href="/apply" variant="action" size="lg">
-              Apply now
+              Apply Now
             </LinkButton>
             <LinkButton
               href="/book"
@@ -26,7 +26,7 @@ export function Footer() {
               size="lg"
               className="!bg-white/10 !text-white !border-white/20 hover:!bg-white/20"
             >
-              Book a call
+              Book a Call
             </LinkButton>
           </div>
         </div>
@@ -61,7 +61,7 @@ export function Footer() {
               { href: "/apply", label: "Apply" },
               { href: "/refer", label: "Refer someone" },
               { href: "/book", label: "Book a call" },
-              { href: "/portal/participant", label: "Sign in" },
+              { href: "/portal", label: "Sign in" },
             ]}
           />
           <FooterColumn

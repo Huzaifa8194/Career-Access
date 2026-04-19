@@ -102,9 +102,9 @@ export default function AdminParticipantsPage() {
                 <Th>Status</Th>
                 <Th>Pathway</Th>
                 <Th>Source</Th>
-                <Th>Date</Th>
-                <Th>Assigned</Th>
-                <Th className="text-right pr-5">—</Th>
+                <Th>Date Submitted</Th>
+                <Th>Assigned To</Th>
+                <Th className="text-right pr-5">&nbsp;</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">

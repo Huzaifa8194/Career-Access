@@ -27,14 +27,14 @@ const steps = [
 ];
 
 const supportOptions = [
-  "FAFSA",
-  "College apps",
-  "Apprenticeship help",
-  "Career advising",
-  "Resume / interview",
-  "Transportation",
-  "Childcare",
-  "Internet / device",
+  "FAFSA / Financial Aid Assistance",
+  "College Application Help",
+  "Apprenticeship Application Help",
+  "Career Advising",
+  "Resume / Interview Help",
+  "Transportation Support",
+  "Childcare Support",
+  "Internet / Device Access",
 ];
 
 export default function IntakePage() {
@@ -83,8 +83,8 @@ export default function IntakePage() {
       }
     >
       <FormHeader
-        title="Complete your application."
-        subtitle="A few more details so your advisor can build a real plan before your first conversation."
+        title="Complete Your Application"
+        subtitle="Provide your information so we can support you."
       />
 
       <form
@@ -94,24 +94,24 @@ export default function IntakePage() {
           router.push("/apply/confirmation");
         }}
       >
-        <FormSection title="Personal information">
+        <FormSection title="Personal Information">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="First name" required htmlFor="fn">
+            <Field label="First Name" required htmlFor="fn">
               <Input id="fn" required />
             </Field>
-            <Field label="Last name" required htmlFor="ln">
+            <Field label="Last Name" required htmlFor="ln">
               <Input id="ln" required />
             </Field>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Email" required htmlFor="em">
+            <Field label="Email Address" required htmlFor="em">
               <Input id="em" type="email" required placeholder="you@example.com" />
             </Field>
-            <Field label="Phone" required htmlFor="ph">
+            <Field label="Mobile Phone" required htmlFor="ph">
               <Input id="ph" type="tel" required placeholder="(617) 555-0123" />
             </Field>
           </div>
-          <Field label="Preferred contact method" required>
+          <Field label="Preferred Contact Method" required>
             <div className="grid gap-3 sm:grid-cols-3">
               {["Email", "Phone", "Text"].map((v) => (
                 <Radio
@@ -126,8 +126,8 @@ export default function IntakePage() {
               ))}
             </div>
           </Field>
-          <Field label="Address" htmlFor="addr">
-            <Input id="addr" placeholder="Street address" />
+          <Field label="Street Address" htmlFor="addr">
+            <Input id="addr" placeholder="123 Main St" />
           </Field>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="City" htmlFor="city">
@@ -143,7 +143,7 @@ export default function IntakePage() {
                 <option>ME</option>
               </Select>
             </Field>
-            <Field label="ZIP" htmlFor="zip" required>
+            <Field label="ZIP Code" htmlFor="zip" required>
               <Input id="zip" required inputMode="numeric" maxLength={5} />
             </Field>
           </div>
@@ -151,7 +151,11 @@ export default function IntakePage() {
 
         <FormSection title="Education">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Highest level completed" required htmlFor="edu">
+            <Field
+              label="What is the highest level of education you've completed?"
+              required
+              htmlFor="edu"
+            >
               <Select id="edu" required defaultValue="">
                 <option value="" disabled>
                   Select one
@@ -165,7 +169,7 @@ export default function IntakePage() {
                 <option>Graduate degree</option>
               </Select>
             </Field>
-            <Field label="Currently enrolled in school?" required>
+            <Field label="Are you currently enrolled in school?" required>
               <div className="grid gap-3 grid-cols-2">
                 {["Yes", "No"].map((v) => (
                   <Radio
@@ -181,12 +185,12 @@ export default function IntakePage() {
               </div>
             </Field>
           </div>
-          <Field label="What kind of program interests you?" required>
+          <Field label="What are you most interested in?" required>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                "Associate",
-                "Bachelor's",
-                "Certificate",
+                "Associate Degree",
+                "Bachelor's Degree",
+                "Certificate / Training",
                 "Apprenticeship",
                 "Not Sure",
               ].map((v) => (
@@ -205,7 +209,7 @@ export default function IntakePage() {
         </FormSection>
 
         <FormSection title="Employment">
-          <Field label="Currently employed?" required>
+          <Field label="Are you currently employed?" required>
             <div className="grid gap-3 grid-cols-2">
               {["Yes", "No"].map((v) => (
                 <Radio
@@ -221,15 +225,15 @@ export default function IntakePage() {
             </div>
           </Field>
           {employed === "Yes" && (
-            <Field label="Job title" htmlFor="jt">
+            <Field label="Job Title (if applicable)" htmlFor="jt">
               <Input id="jt" placeholder="e.g. Retail associate" />
             </Field>
           )}
         </FormSection>
 
         <FormSection
-          title="What support do you need?"
-          description="Select everything that applies. Your advisor will tailor your plan."
+          title="Support Needed"
+          description="Select all that apply."
         >
           <div className="grid gap-3 sm:grid-cols-2">
             {supportOptions.map((s) => (
@@ -254,8 +258,8 @@ export default function IntakePage() {
         </FormSection>
 
         <FormSection
-          title="Documents"
-          description="Optional — upload only if you already have them."
+          title="Upload Documents"
+          description="Upload any documents (optional)."
         >
           <label className="flex items-center justify-between gap-4 rounded-md border border-dashed border-line bg-canvas/60 p-4 cursor-pointer hover:border-line-strong">
             <div className="flex items-center gap-3 min-w-0">
@@ -272,7 +276,7 @@ export default function IntakePage() {
               </div>
             </div>
             <span className="text-[13px] font-medium text-primary">
-              Choose file
+              Upload Files
             </span>
             <input
               type="file"
@@ -285,14 +289,14 @@ export default function IntakePage() {
         <FormSection title="Consent">
           <Checkbox
             required
-            label="I confirm the information above is accurate to the best of my knowledge."
+            label="I confirm the information provided is accurate."
           />
           <Checkbox
             required
-            label="I consent to be contacted by Career Access about my application."
+            label="I consent to be contacted by program staff."
           />
           <Checkbox
-            label="I consent to share my information with vetted partner organizations to find a placement faster."
+            label="I agree to allow my information to be shared with partner organizations for support services."
             description="Optional — you can update this anytime in your portal."
           />
         </FormSection>
@@ -300,12 +304,12 @@ export default function IntakePage() {
         <div className="flex items-center justify-between gap-3 pt-2">
           <Link
             href="/apply"
-            className="text-[14px] font-medium text-ink-muted hover:text-ink"
+            className="inline-flex h-12 items-center px-5 rounded-md text-[15px] font-medium text-ink border border-line bg-white hover:border-line-strong hover:bg-canvas"
           >
-            ← Back
+            Back
           </Link>
           <Button type="submit" size="lg">
-            Submit application <ArrowRight size={16} />
+            Submit Application <ArrowRight size={16} />
           </Button>
         </div>
       </form>

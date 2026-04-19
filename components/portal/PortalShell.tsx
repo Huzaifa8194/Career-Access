@@ -79,6 +79,11 @@ const roleNav: Record<string, { label: string; items: NavItem[] }> = {
         label: "Partners",
         icon: <Briefcase size={16} />,
       },
+      {
+        href: "/portal/admin/tasks",
+        label: "Tasks & content",
+        icon: <Inbox size={16} />,
+      },
     ],
   },
 };

@@ -5,9 +5,9 @@
   --color-primary: #1f3a8a;
   --color-primary-700: #1d3578;
   --color-primary-50: #eef2ff;
-  --color-action: #16a34a;
-  --color-action-700: #15803d;
-  --color-action-50: #ecfdf5;
+  --color-action: #4caf50;
+  --color-action-700: #388e3c;
+  --color-action-50: #edf7ee;
 
   /* Surfaces & ink */
   --color-canvas: #f8fafc;
@@ -18,13 +18,13 @@
   --color-line: #e5e7eb;
   --color-line-strong: #d1d5db;
 
-  /* Status */
-  --color-info: #2563eb;
-  --color-info-50: #eff6ff;
+  /* Status — per spec: Info = primary blue, In Progress = amber, Success = green, Inactive = gray */
+  --color-info: #1f3a8a;
+  --color-info-50: #eef2ff;
   --color-warn: #f59e0b;
   --color-warn-50: #fffbeb;
-  --color-success: #16a34a;
-  --color-success-50: #ecfdf5;
+  --color-success: #4caf50;
+  --color-success-50: #edf7ee;
   --color-danger: #dc2626;
   --color-danger-50: #fef2f2;
   --color-muted: #9ca3af;

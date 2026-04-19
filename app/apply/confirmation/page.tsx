@@ -61,57 +61,61 @@ export default function ApplyConfirmationPage() {
           </Badge>
         </div>
         <h1 className="mt-5 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-[1.05]">
-          Thank you. We've got it from here.
+          Thank You!
         </h1>
         <p className="mt-3 text-[16px] text-ink-muted leading-7 max-w-xl">
-          Your application has been submitted and routed to advising. A real
-          person will be in touch within two business days.
+          Your application has been submitted.
         </p>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              icon: <FileText size={16} />,
-              title: "We review",
-              copy: "Our team confirms eligibility and assigns your pathway.",
-            },
-            {
-              icon: <Mail size={16} />,
-              title: "We reach out",
-              copy: "Expect a call or email in 2 business days.",
-            },
-            {
-              icon: <Calendar size={16} />,
-              title: "We meet",
-              copy: "You'll book a 30-minute working session with your advisor.",
-            },
-          ].map((s, i) => (
-            <Card key={s.title} className="p-5">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-primary">
-                  {s.icon}
-                </span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-                  Step {i + 1}
-                </span>
-              </div>
-              <h3 className="mt-3 text-[15px] font-semibold tracking-tight">
-                {s.title}
-              </h3>
-              <p className="mt-1 text-[13px] text-ink-muted leading-6">
-                {s.copy}
-              </p>
-            </Card>
-          ))}
+        <div className="mt-8">
+          <h2 className="text-[18px] font-semibold tracking-tight">
+            What Happens Next
+          </h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                icon: <FileText size={16} />,
+                title: "We review",
+                copy: "Our team will review your information.",
+              },
+              {
+                icon: <Mail size={16} />,
+                title: "We reach out",
+                copy: "We will contact you within 2–3 business days.",
+              },
+              {
+                icon: <Calendar size={16} />,
+                title: "Schedule a call",
+                copy: "You can schedule an advising call now if you haven't already.",
+              },
+            ].map((s, i) => (
+              <Card key={s.title} className="p-5">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-primary">
+                    {s.icon}
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+                    Step {i + 1}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-[15px] font-semibold tracking-tight">
+                  {s.title}
+                </h3>
+                <p className="mt-1 text-[13px] text-ink-muted leading-6">
+                  {s.copy}
+                </p>
+              </Card>
+            ))}
+          </div>
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
           <LinkButton href="/book" variant="primary" size="lg">
-            Book a call now <ArrowRight size={16} />
+            Book an Advising Call <ArrowRight size={16} />
           </LinkButton>
           <LinkButton
             href="/portal/participant"
-            variant="secondary"
+            variant="action"
             size="lg"
           >
             Go to your portal
@@ -120,7 +124,7 @@ export default function ApplyConfirmationPage() {
             href="/"
             className="inline-flex items-center px-3 h-12 text-[14px] font-medium text-ink-muted hover:text-ink"
           >
-            Back to home
+            Return to Home
           </Link>
         </div>
       </div>

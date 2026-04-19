@@ -43,25 +43,24 @@ function Hero() {
               Free, confidential support · Statewide
             </div>
             <h1 className="mt-5 text-[40px] sm:text-[52px] leading-[1.02] font-semibold tracking-[-0.02em]">
-              Your next step
+              Your Next Step
               <br />
-              <span className="text-primary">starts here.</span>
+              <span className="text-primary">Starts Here</span>
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-7 text-ink-muted">
               Get free support to enroll in college, job training, or
-              apprenticeship programs. We help adult learners turn intent into
-              an enrollment plan — paired with a real advisor.
+              apprenticeship programs.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <LinkButton href="/apply" size="lg" variant="primary">
-                Apply now
+                Apply Now
                 <ArrowRight size={16} />
               </LinkButton>
-              <LinkButton href="/refer" size="lg" variant="secondary">
-                Refer someone
+              <LinkButton href="/refer" size="lg" variant="action">
+                Refer Someone
               </LinkButton>
-              <LinkButton href="/book" size="lg" variant="ghost">
-                Book an advising call
+              <LinkButton href="/book" size="lg" variant="outline">
+                Book an Advising Call
               </LinkButton>
             </div>
             <dl className="mt-10 grid grid-cols-3 gap-6 max-w-md">
@@ -275,17 +274,17 @@ function HowItWorksPreview() {
     {
       n: "01",
       title: "Apply",
-      copy: "A short eligibility screener and a structured intake. About 7 minutes.",
+      copy: "Tell us about your background and goals.",
     },
     {
       n: "02",
-      title: "Get support",
-      copy: "We assign your pathway and pair you with a real advisor — not a chatbot.",
+      title: "Get Support",
+      copy: "We help with applications, financial aid, and next steps.",
     },
     {
       n: "03",
-      title: "Move forward",
-      copy: "You leave with a plan: enrolled, in training, or in an apprenticeship.",
+      title: "Move Forward",
+      copy: "Enroll in a program that leads to real career opportunities.",
     },
   ];
   return (
@@ -334,7 +333,7 @@ function ServicesGrid() {
     },
     {
       icon: <Wrench size={18} />,
-      title: "Job training",
+      title: "Job training programs",
       copy: "Find short-term certifications matched to in-demand fields.",
     },
     {
@@ -344,7 +343,7 @@ function ServicesGrid() {
     },
     {
       icon: <FileText size={18} />,
-      title: "FAFSA support",
+      title: "FAFSA & financial aid support",
       copy: "Step-by-step help with federal and state aid applications.",
     },
     {
@@ -357,7 +356,7 @@ function ServicesGrid() {
     <section className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
       <SectionHeader
         eyebrow="Services"
-        title="One front door. Five real services."
+        title="What We Help With"
         copy="Not a portal of links — actual support, end-to-end, until you're enrolled."
       />
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -402,23 +401,23 @@ function Audience() {
       copy: "Pick up where you left off — without losing time or aid eligibility.",
     },
     {
-      title: "Career switchers",
+      title: "Individuals exploring new career paths",
       copy: "Move into a new industry with a credential that employers recognize.",
     },
     {
-      title: "First-generation students",
+      title: "First-generation college applicants",
       copy: "Skip the trial-and-error. We've helped families navigate this for years.",
     },
     {
-      title: "Guidance seekers",
-      copy: "Just need someone to think it through with you? That's a real service here.",
+      title: "Anyone needing guidance",
+      copy: "Navigating education or workforce options shouldn't be a solo project.",
     },
   ];
   return (
     <section className="bg-white border-y border-line">
       <div className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
         <SectionHeader
-          eyebrow="Who we serve"
+          eyebrow="Who this is for"
           title="Built for adults navigating real life"
           copy="Working full-time, raising kids, supporting parents — your time is the constraint, not your potential."
         />

@@ -41,8 +41,9 @@ Flows:
    /book                 Book an advising call
    /book/confirmation    Appointment confirmed
 
-Portal (no real auth — pick a role from /portal):
-   /portal                              Role picker
+Portal (sign-in is UI-only — pick any role to enter):
+   /portal                              Sign in (with demo role panel)
+   /portal/sign-up                      Create account (UI only)
    /portal/participant                  Participant dashboard
    /portal/participant/appointments     Appointments
    /portal/participant/documents        Documents
@@ -51,10 +52,11 @@ Portal (no real auth — pick a role from /portal):
    /portal/advisor/participants         All participants table
    /portal/advisor/participants/p_1042  Example participant profile
    /portal/advisor/inbox                Advisor inbox
-   /portal/admin                        Admin overview + metrics
-   /portal/admin/participants           Applicants table
+   /portal/admin                        Admin Dashboard Overview
+   /portal/admin/participants           Applicants by Status (table)
    /portal/admin/participants/p_1042    Example applicant profile
    /portal/admin/partners               Partner referrals
+   /portal/admin/tasks                  Tasks & content management
 
 
 Production build (when you're ready, optional)

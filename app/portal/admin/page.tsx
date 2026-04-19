@@ -6,11 +6,12 @@ import { LinkButton } from "@/components/ui/Button";
 import {
   participants,
   adminMetrics,
+  pipelineStages,
   type ParticipantStatus,
 } from "@/lib/data";
 import { ArrowRight, ChartBar } from "@/components/icons";
 
-export const metadata = { title: "Admin overview" };
+export const metadata = { title: "Dashboard Overview" };
 
 const statusTone: Record<
   ParticipantStatus,
@@ -30,7 +31,7 @@ export default function AdminOverviewPage() {
   return (
     <PortalShell
       role="admin"
-      title="Program overview"
+      title="Dashboard Overview"
       subtitle="Operational view across all applicants and partners."
       actions={
         <>
@@ -49,29 +50,75 @@ export default function AdminOverviewPage() {
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard
-          label="Total applicants"
+          label="Total Applicants"
           value={adminMetrics.totalApplicants.toLocaleString()}
           delta="+12% MoM"
           tone="primary"
         />
         <StatCard
-          label="New this week"
+          label="New This Week"
           value={adminMetrics.newThisWeek}
           delta="+8 vs. last"
           tone="success"
         />
         <StatCard
-          label="Calls scheduled"
+          label="Calls Scheduled"
           value={adminMetrics.callsScheduled}
           hint="Next 5 business days"
         />
         <StatCard
-          label="Enrolled or placed"
+          label="Enrolled"
           value={adminMetrics.enrolled}
           delta="+19 this month"
           tone="success"
         />
       </div>
+
+      {/* Participants by stage */}
+      <Card className="mb-6">
+        <CardHeader
+          title="Participants by stage"
+          description="Live pipeline counts across all advisors"
+          action={
+            <Link
+              href="/portal/advisor"
+              className="text-[13px] font-medium text-primary inline-flex items-center gap-1"
+            >
+              Open pipeline <ArrowRight size={12} />
+            </Link>
+          }
+        />
+        <CardBody>
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {pipelineStages.map((stage) => {
+              const count = participants.filter(
+                (p) => p.status === stage.key
+              ).length;
+              return (
+                <div
+                  key={stage.key}
+                  className="rounded-md border border-line bg-canvas/40 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-medium uppercase tracking-wider text-ink-subtle">
+                      {stage.label}
+                    </span>
+                    <Badge tone={statusTone[stage.key]} size="sm">
+                      {count}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-[24px] font-semibold tabular tracking-tight">
+                    {count}
+                  </div>
+                  <p className="mt-1 text-[12px] text-ink-subtle leading-5">
+                    {stage.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </CardBody>
+      </Card>
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr] mb-6">
         <Card>
@@ -112,7 +159,7 @@ export default function AdminOverviewPage() {
 
       <Card>
         <CardHeader
-          title="Recent applicants"
+          title="Applicants by Status"
           description="Most recent intakes across all advisors"
           action={
             <Link
@@ -130,9 +177,9 @@ export default function AdminOverviewPage() {
                 <Th>Name</Th>
                 <Th>Status</Th>
                 <Th>Source</Th>
-                <Th>Date</Th>
-                <Th>Assigned</Th>
-                <Th className="text-right pr-5">—</Th>
+                <Th>Date Submitted</Th>
+                <Th>Assigned To</Th>
+                <Th className="text-right pr-5">&nbsp;</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
