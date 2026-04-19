@@ -1,0 +1,78 @@
+CAREER ACCESS — Commands to run
+================================
+
+Prerequisites
+-------------
+Node.js 18.18+ (Node 20 LTS recommended) and npm already installed.
+Dependencies are listed in package.json (Next.js 16, React 19,
+Tailwind CSS v4, TypeScript). No new packages were added.
+
+
+First-time setup
+----------------
+1) Install dependencies (only needed once, or after a pull):
+
+   npm install
+
+
+Run the dev server
+------------------
+2) Start the local dev server (default: http://localhost:3000):
+
+   npm run dev
+
+
+Routes to visit
+---------------
+Public site:
+   /                     Home
+   /how-it-works         How it works
+   /services             Services
+   /partners             For partners
+   /get-started          Get started
+   /contact              Contact
+
+Flows:
+   /apply                Eligibility screener  (Apply step 1)
+   /apply/intake         Full intake form      (Apply step 2)
+   /apply/confirmation   Application received  (Apply step 3)
+   /refer                Referral form
+   /refer/confirmation   Referral submitted
+   /book                 Book an advising call
+   /book/confirmation    Appointment confirmed
+
+Portal (no real auth — pick a role from /portal):
+   /portal                              Role picker
+   /portal/participant                  Participant dashboard
+   /portal/participant/appointments     Appointments
+   /portal/participant/documents        Documents
+   /portal/participant/messages         Messages
+   /portal/advisor                      Advisor pipeline (kanban)
+   /portal/advisor/participants         All participants table
+   /portal/advisor/participants/p_1042  Example participant profile
+   /portal/advisor/inbox                Advisor inbox
+   /portal/admin                        Admin overview + metrics
+   /portal/admin/participants           Applicants table
+   /portal/admin/participants/p_1042    Example applicant profile
+   /portal/admin/partners               Partner referrals
+
+
+Production build (when you're ready, optional)
+----------------------------------------------
+3) Build for production:
+
+   npm run build
+
+4) Start the production server:
+
+   npm run start
+
+
+Notes
+-----
+- No backend is wired up. Forms route between steps using the Next.js
+  router; submitted state is local-only (no data is persisted).
+- Mock data lives in lib/data.ts. Edit it to change participants,
+  pipeline content, admin metrics, and the participant dashboard.
+- Design tokens (colors, typography, shadows) live in app/globals.css
+  under the @theme block.
