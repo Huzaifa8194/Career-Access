@@ -35,54 +35,79 @@ function Hero() {
   return (
     <section className="relative overflow-hidden surface-hero">
       <div aria-hidden className="absolute inset-0 grid-bg opacity-60" />
-      <div className="relative mx-auto max-w-6xl px-5 lg:px-8 pt-16 sm:pt-24 pb-20">
-        <div className="grid gap-12 lg:grid-cols-[1.4fr_1fr] items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-2.5 py-1 text-[12px] text-ink-muted shadow-[var(--shadow-card)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-action" />
-              Free, confidential support · Statewide
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-5 lg:px-8 pt-12 pb-16 sm:pt-16 sm:pb-20 md:pt-20 lg:pt-24 lg:pb-24">
+        <div className="grid gap-8 md:gap-10 lg:gap-12 lg:grid-cols-[1.35fr_1fr] lg:items-start">
+          <div className="min-w-0">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-white px-2.5 py-1.5 text-[11px] sm:text-[12px] text-ink-muted shadow-[var(--shadow-card)]">
+              <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-action" />
+              <span className="leading-snug">
+                Free, confidential support · Statewide
+              </span>
             </div>
-            <h1 className="mt-5 text-[40px] sm:text-[52px] leading-[1.02] font-semibold tracking-[-0.02em]">
+            <h1 className="mt-4 sm:mt-5 text-[clamp(1.875rem,5.2vw,3.25rem)] leading-[1.05] font-semibold tracking-[-0.02em]">
               Your Next Step
               <br />
               <span className="text-primary">Starts Here</span>
             </h1>
-            <p className="mt-5 max-w-xl text-[17px] leading-7 text-ink-muted">
+            <p className="mt-4 sm:mt-5 max-w-xl text-[15px] sm:text-[16px] md:text-[17px] leading-7 text-ink-muted">
               Get free support to enroll in college, job training, or
               apprenticeship programs.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <LinkButton href="/apply" size="lg" variant="primary">
+            <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row sm:flex-wrap gap-2.5 sm:gap-3">
+              <LinkButton
+                href="/apply"
+                size="lg"
+                variant="primary"
+                className="w-full sm:w-auto justify-center min-h-12"
+              >
                 Apply Now
                 <ArrowRight size={16} />
               </LinkButton>
-              <LinkButton href="/refer" size="lg" variant="action">
+              <LinkButton
+                href="/refer"
+                size="lg"
+                variant="action"
+                className="w-full sm:w-auto justify-center min-h-12"
+              >
                 Refer Someone
               </LinkButton>
-              <LinkButton href="/book" size="lg" variant="outline">
+              <LinkButton
+                href="/book"
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto justify-center min-h-12"
+              >
                 Book an Advising Call
               </LinkButton>
             </div>
-            <dl className="mt-10 grid grid-cols-3 gap-6 max-w-md">
-              <Stat value="7 min" label="To apply" />
-              <Stat value="2 days" label="Avg. response" />
-              <Stat value="1:1" label="Advisor support" />
-            </dl>
+
+            <div className="mt-8 sm:mt-10 max-w-xl lg:max-w-none">
+              <p className="sr-only">Key service metrics</p>
+              <div className="rounded-xl border border-line bg-white shadow-[var(--shadow-card)] overflow-hidden">
+                <dl className="grid grid-cols-1 divide-y divide-line sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:divide-line">
+                  <HeroStat value="7 min" label="To apply" />
+                  <HeroStat value="2 days" label="Avg. response" />
+                  <HeroStat value="1:1" label="Advisor support" />
+                </dl>
+              </div>
+            </div>
           </div>
-          <HeroAside />
+          <div className="min-w-0 lg:pt-1">
+            <HeroAside />
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function HeroStat({ value, label }: { value: string; label: string }) {
   return (
-    <div>
-      <dt className="text-[12px] uppercase tracking-wider text-ink-subtle">
+    <div className="px-4 py-4 sm:px-5 sm:py-5 min-h-[4.5rem] sm:min-h-0 flex flex-col justify-center">
+      <dt className="text-[11px] sm:text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
         {label}
       </dt>
-      <dd className="mt-1 text-[22px] font-semibold tracking-tight tabular">
+      <dd className="mt-1.5 text-[22px] sm:text-[24px] font-semibold tracking-tight tabular-nums text-ink leading-none">
         {value}
       </dd>
     </div>
