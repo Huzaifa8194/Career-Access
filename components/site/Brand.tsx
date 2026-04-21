@@ -30,10 +30,10 @@ export function Brand({
 }: BrandProps) {
   const markBox = markOnly
     ? size === "sm"
-      ? "h-7 w-[9.5rem]"
+      ? "h-10 w-[15.5rem]"
       : size === "lg"
-        ? "h-10 w-[13.5rem]"
-        : "h-8 w-[11.25rem]"
+        ? "h-12 w-[17rem]"
+        : "h-11 w-[16rem]"
     : size === "sm"
       ? "h-8 w-8"
       : size === "lg"
@@ -75,10 +75,10 @@ export function Brand({
           alt={markOnly ? "Career Access Hub by EmployReady Partners" : ""}
           fill
           priority
-          sizes={markOnly ? "220px" : "44px"}
+          sizes={markOnly ? "300px" : "44px"}
           className={[
             "object-contain select-none",
-            markOnly ? "object-left scale-[1.03]" : "scale-[1.18]",
+            markOnly ? "object-left scale-[1.16]" : "scale-[1.18]",
           ].join(" ")}
         />
       </span>
