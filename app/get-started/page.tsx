@@ -17,7 +17,7 @@ const paths = [
   {
     icon: <Compass size={20} />,
     tag: "5–7 minutes",
-    title: "Apply for yourself",
+    title: "Apply Now",
     copy: "Best if you know you want help with college, training, an apprenticeship, or HSE.",
     bullets: [
       "Eligibility screener + structured intake",
@@ -30,7 +30,7 @@ const paths = [
   {
     icon: <Users size={20} />,
     tag: "For partners",
-    title: "Refer someone",
+    title: "Refer a Participant",
     copy: "Best if you're an organization, advisor, or family member submitting on behalf of someone.",
     bullets: [
       "Capture both referrer + applicant info",
@@ -43,7 +43,7 @@ const paths = [
   {
     icon: <Sparkle size={20} />,
     tag: "30-min, free",
-    title: "Book an advising call",
+    title: "Book an Advising Call",
     copy: "Best if you'd like to talk through options before committing to a pathway.",
     bullets: [
       "Choose a time that works",

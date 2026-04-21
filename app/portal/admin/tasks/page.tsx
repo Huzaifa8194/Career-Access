@@ -45,7 +45,7 @@ const seedTasks: Task[] = [
   },
   {
     id: "t3",
-    title: "Review IBEW Local 103 partner agreement",
+    title: "Review IBEW — North Jersey partner agreement",
     owner: "Aisha B.",
     due: "May 2",
     priority: "High",

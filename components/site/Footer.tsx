@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/icons";
+import { Brand } from "@/components/site/Brand";
 import { LinkButton } from "@/components/ui/Button";
 
 export function Footer() {
@@ -26,7 +26,7 @@ export function Footer() {
               size="lg"
               className="!bg-white/10 !text-white !border-white/20 hover:!bg-white/20"
             >
-              Book a Call
+              Book an Advising Call
             </LinkButton>
           </div>
         </div>
@@ -35,15 +35,11 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-5 lg:px-8 pb-12">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <Logo size={26} />
-              <span className="font-semibold tracking-tight">
-                Career Access
-              </span>
-            </Link>
-            <p className="mt-3 text-[13px] text-ink-subtle leading-6 max-w-xs">
-              A workforce navigation service for adult learners across
-              Massachusetts. Funded by state and partner agencies.
+            <Brand />
+            <p className="mt-4 text-[13px] text-ink-subtle leading-6 max-w-xs">
+              A workforce navigation service for adult learners across Bergen,
+              Passaic, and Hudson Counties in New Jersey. Free and
+              confidential.
             </p>
           </div>
           <FooterColumn
@@ -58,9 +54,9 @@ export function Footer() {
           <FooterColumn
             title="For you"
             links={[
-              { href: "/apply", label: "Apply" },
-              { href: "/refer", label: "Refer someone" },
-              { href: "/book", label: "Book a call" },
+              { href: "/apply", label: "Apply Now" },
+              { href: "/refer", label: "Refer a Participant" },
+              { href: "/book", label: "Book an Advising Call" },
               { href: "/portal", label: "Sign in" },
             ]}
           />
@@ -75,7 +71,10 @@ export function Footer() {
           />
         </div>
         <div className="mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-line pt-6 text-[12px] text-ink-subtle">
-          <span>© {new Date().getFullYear()} Career Access. All rights reserved.</span>
+          <span>
+            © {new Date().getFullYear()} Career Access Hub by EmployReady
+            Partners. All rights reserved.
+          </span>
           <span className="inline-flex items-center gap-2">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-action" />
             Service is free and confidential

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { SiteShell, PageHeader } from "@/components/site/SiteShell";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -82,10 +83,10 @@ export default function ServicesPage() {
         actions={
           <>
             <LinkButton href="/apply" variant="primary" size="lg">
-              Apply now <ArrowRight size={16} />
+              Apply Now <ArrowRight size={16} />
             </LinkButton>
             <LinkButton href="/book" variant="secondary" size="lg">
-              Book an advising call
+              Book an Advising Call
             </LinkButton>
           </>
         }
@@ -128,12 +129,33 @@ export default function ServicesPage() {
 
       <section className="bg-white border-y border-line">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 pt-16 pb-10 sm:pb-12">
-          <SectionHeader
-            eyebrow="What's included"
-            title="Every participant gets the same baseline of support"
-          />
-          <div className="mt-8 grid gap-px sm:grid-cols-3 bg-line border border-line rounded-lg overflow-hidden">
-            {[
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+            <div className="relative overflow-hidden rounded-2xl border border-line bg-canvas shadow-[var(--shadow-card)] order-last lg:order-first">
+              <div className="relative aspect-[4/3]">
+                <Image
+                  src="/2.jpeg"
+                  alt="A Career Access Hub advisor walking a participant through his options"
+                  fill
+                  sizes="(min-width: 1024px) 520px, 100vw"
+                  className="object-cover object-left-top scale-[1.08]"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/30 to-transparent"
+                />
+                <div className="absolute left-4 bottom-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-action" />
+                  1:1 Advising
+                </div>
+              </div>
+            </div>
+            <div>
+              <SectionHeader
+                eyebrow="What's included"
+                title="Every participant gets the same baseline of support"
+              />
+              <div className="mt-8 grid gap-px sm:grid-cols-1 bg-line border border-line rounded-lg overflow-hidden">
+                {[
               {
                 k: "1:1",
                 t: "Dedicated advisor",
@@ -149,19 +171,26 @@ export default function ServicesPage() {
                 t: "Follow-up",
                 d: "Reminders, check-ins, and re-engagement until you reach an outcome.",
               },
-            ].map((b) => (
-              <div key={b.t} className="bg-white p-6">
-                <div className="text-[24px] font-semibold tabular tracking-tight text-primary">
-                  {b.k}
-                </div>
-                <h3 className="mt-2 text-[15px] font-semibold tracking-tight">
-                  {b.t}
-                </h3>
-                <p className="mt-1.5 text-[14px] text-ink-muted leading-6">
-                  {b.d}
-                </p>
+                ].map((b) => (
+                  <div
+                    key={b.t}
+                    className="bg-white p-6 flex items-start gap-5"
+                  >
+                    <div className="text-[24px] font-semibold tabular tracking-tight text-primary shrink-0 w-10">
+                      {b.k}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-[15px] font-semibold tracking-tight">
+                        {b.t}
+                      </h3>
+                      <p className="mt-1.5 text-[14px] text-ink-muted leading-6">
+                        {b.d}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>

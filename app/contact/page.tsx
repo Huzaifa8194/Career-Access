@@ -34,10 +34,10 @@ export default function ContactPage() {
                 </p>
                 <div className="mt-6 flex justify-center gap-3">
                   <LinkButton href="/apply" variant="primary">
-                    Apply now <ArrowRight size={14} />
+                    Apply Now <ArrowRight size={14} />
                   </LinkButton>
                   <LinkButton href="/book" variant="secondary">
-                    Book a call
+                    Book an Advising Call
                   </LinkButton>
                 </div>
               </div>
@@ -70,7 +70,7 @@ export default function ContactPage() {
                     <Input
                       id="c-phone"
                       type="tel"
-                      placeholder="(617) 555-0123"
+                      placeholder="(201) 555-0123"
                     />
                   </Field>
                   <Field label="I'm reaching out as" htmlFor="c-role" required>
@@ -120,7 +120,7 @@ export default function ContactPage() {
                     <div className="text-ink-subtle text-[12px] uppercase tracking-wider">
                       Email
                     </div>
-                    <div>hello@careeraccess.example</div>
+                    <div>hello@employreadypartners.org</div>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -131,7 +131,7 @@ export default function ContactPage() {
                     <div className="text-ink-subtle text-[12px] uppercase tracking-wider">
                       Phone
                     </div>
-                    <div>(617) 555-0190 · Mon–Fri, 9–5 ET</div>
+                    <div>(201) 555-0190 · Mon–Fri, 9–5 ET</div>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -142,7 +142,7 @@ export default function ContactPage() {
                     <div className="text-ink-subtle text-[12px] uppercase tracking-wider">
                       Office
                     </div>
-                    <div>200 Tremont St, Boston MA 02116</div>
+                    <div>100 Hamilton Plaza, Paterson NJ 07505</div>
                   </div>
                 </li>
               </ul>
@@ -157,7 +157,7 @@ export default function ContactPage() {
               </p>
               <div className="mt-4">
                 <LinkButton href="/book" variant="primary" size="sm">
-                  Book a call
+                  Book an Advising Call
                 </LinkButton>
               </div>
             </Card>

@@ -82,7 +82,7 @@ export default function ApplyEligibilityPage() {
                 required
                 inputMode="numeric"
                 maxLength={5}
-                placeholder="02118"
+                placeholder="07505"
               />
             </Field>
           </div>

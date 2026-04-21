@@ -45,7 +45,7 @@ export default function ReferPage() {
       }
     >
       <FormHeader
-        title="Refer Someone to the Program"
+        title="Refer a Participant"
         subtitle="Help someone take the next step."
       />
 
@@ -136,7 +136,7 @@ export default function ReferPage() {
           <Checkbox
             required
             label="I confirm I have permission to refer this individual."
-            description="We will only contact them about Career Access services."
+            description="We will only contact them about Career Access Hub services."
           />
         </FormSection>
 

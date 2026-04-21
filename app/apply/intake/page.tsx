@@ -76,7 +76,7 @@ export default function IntakePage() {
               href="/book"
               className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary"
             >
-              Book a call <ArrowRight size={13} />
+              Book an Advising Call <ArrowRight size={13} />
             </Link>
           </FlowSidebar>
         </div>
@@ -108,7 +108,7 @@ export default function IntakePage() {
               <Input id="em" type="email" required placeholder="you@example.com" />
             </Field>
             <Field label="Mobile Phone" required htmlFor="ph">
-              <Input id="ph" type="tel" required placeholder="(617) 555-0123" />
+              <Input id="ph" type="tel" required placeholder="(201) 555-0123" />
             </Field>
           </div>
           <Field label="Preferred Contact Method" required>
@@ -134,13 +134,12 @@ export default function IntakePage() {
               <Input id="city" />
             </Field>
             <Field label="State" htmlFor="state">
-              <Select id="state" defaultValue="MA">
-                <option>MA</option>
-                <option>NH</option>
-                <option>RI</option>
+              <Select id="state" defaultValue="NJ">
+                <option>NJ</option>
+                <option>NY</option>
+                <option>PA</option>
                 <option>CT</option>
-                <option>VT</option>
-                <option>ME</option>
+                <option>DE</option>
               </Select>
             </Field>
             <Field label="ZIP Code" htmlFor="zip" required>

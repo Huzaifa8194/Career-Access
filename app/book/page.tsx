@@ -52,8 +52,11 @@ export default function BookPage() {
           <FlowSidebar title="Need a different time?">
             <p className="text-[13px] text-ink-muted leading-6">
               Don't see a time that works? Email{" "}
-              <a className="text-primary" href="mailto:hello@careeraccess.example">
-                hello@careeraccess.example
+              <a
+                className="text-primary"
+                href="mailto:hello@employreadypartners.org"
+              >
+                hello@employreadypartners.org
               </a>{" "}
               and we'll match you with an advisor.
             </p>

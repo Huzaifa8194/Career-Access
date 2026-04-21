@@ -10,11 +10,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Career Access — Your next step starts here",
-    template: "%s · Career Access",
+    default:
+      "Career Access Hub by EmployReady Partners — Your next step starts here",
+    template: "%s · Career Access Hub",
   },
   description:
-    "Free support to enroll in college, job training, or apprenticeship programs. Built for adult learners and the partners who serve them.",
+    "Free support to enroll in college, job training, or apprenticeship programs across Bergen, Passaic, and Hudson Counties in New Jersey. Delivered by EmployReady Partners.",
   metadataBase: new URL("https://example.com"),
 };
 

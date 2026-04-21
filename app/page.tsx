@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { SiteShell } from "@/components/site/SiteShell";
 import { SectionHeader } from "@/components/site/SectionHeader";
@@ -48,7 +49,7 @@ function Hero() {
             <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line/90 bg-white/95 px-3 py-2 text-[11px] sm:text-[12px] text-ink-muted shadow-sm ring-1 ring-black/[0.04]">
               <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-action shadow-[0_0_0_3px_rgba(74,222,128,0.25)]" />
               <span className="leading-snug font-medium">
-                Free, confidential support · Statewide
+                Free, confidential support · Bergen · Passaic · Hudson
               </span>
             </div>
             <h1 className="mt-5 sm:mt-6 text-[clamp(1.875rem,6vw,3.25rem)] leading-[1.06] font-semibold tracking-[-0.025em] text-balance">
@@ -74,20 +75,20 @@ function Hero() {
                   <ArrowRight size={16} />
                 </LinkButton>
                 <LinkButton
-                  href="/refer"
+                  href="/book"
                   size="lg"
                   variant="action"
                   className="w-full sm:w-auto justify-center min-h-[3rem] shadow-sm"
                 >
-                  Refer Someone
+                  Book an Advising Call
                 </LinkButton>
                 <LinkButton
-                  href="/book"
+                  href="/refer"
                   size="lg"
                   variant="outline"
                   className="w-full sm:w-auto justify-center min-h-[3rem] bg-white"
                 >
-                  Book an Advising Call
+                  Refer a Participant
                 </LinkButton>
               </div>
             </div>
@@ -175,7 +176,7 @@ function HeroAside() {
             Your pathway, in one place
           </p>
           <h3 className="mt-1 text-[18px] font-semibold tracking-tight">
-            Career Access portal
+            Career Access Hub portal
           </h3>
         </div>
         <Badge tone="primary" dot>
@@ -257,52 +258,85 @@ function HeroAside() {
 }
 
 function TrustStrip() {
-  const partners: { name: string; mark: string }[] = [
-    { name: "MA Workforce Board", mark: "WB" },
-    { name: "Bunker Hill CC", mark: "BH" },
-    { name: "Year Up", mark: "YU" },
-    { name: "IBEW Local 103", mark: "IB" },
-    { name: "JFYNetWorks", mark: "JF" },
+  const partners: { name: string; src: string; short: string }[] = [
+    {
+      name: "Bergen Community College",
+      src: "/uni1.png",
+      short: "Bergen CC",
+    },
+    { name: "Lincoln Tech", src: "/uni2.jpeg", short: "Lincoln Tech" },
+    {
+      name: "New Jersey City University",
+      src: "/uni3.png",
+      short: "NJCU",
+    },
+    {
+      name: "Middlesex College",
+      src: "/uni4.png",
+      short: "Middlesex College",
+    },
+    {
+      name: "Passaic County Community College",
+      src: "/uni5.jpeg",
+      short: "Passaic County CC",
+    },
   ];
   return (
     <section
       className="border-y border-line bg-white"
       aria-labelledby="trusted-partners-heading"
     >
-      <div className="mx-auto max-w-6xl px-5 lg:px-8 py-10 sm:py-12">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 max-w-2xl">
-          <div>
-            <p
-              id="trusted-partners-heading"
-              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary"
-            >
-              Trusted partners
-            </p>
-            <p className="mt-2 text-[15px] sm:text-[16px] text-ink-muted leading-snug">
-              Organizations we work with to connect adults to education and
-              training pathways.
-            </p>
-          </div>
+      <div className="mx-auto max-w-6xl px-5 lg:px-8 py-12 sm:py-14">
+        <div className="max-w-3xl">
+          <p
+            id="trusted-partners-heading"
+            className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary"
+          >
+            Trusted partners
+          </p>
+          <h2 className="mt-2 text-[22px] sm:text-[26px] font-semibold tracking-tight leading-snug text-ink">
+            We work with colleges, training providers, and workforce
+            organizations.
+          </h2>
+          <p className="mt-3 text-[15px] text-ink-muted leading-relaxed">
+            Career Access Hub is delivered by EmployReady Partners in
+            coordination with community colleges, accredited training
+            providers, and county workforce boards across Bergen, Passaic,
+            and Hudson.
+          </p>
         </div>
-        <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+
+        <ul
+          className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5"
+          role="list"
+        >
           {partners.map((p) => (
             <li key={p.name}>
-              <div className="group h-full rounded-lg border border-line bg-canvas/80 px-4 py-4 shadow-[var(--shadow-card)] transition-colors hover:border-primary/25 hover:bg-white">
-                <div className="flex items-start gap-3">
-                  <span
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line bg-white text-[11px] font-semibold tracking-tight text-primary tabular"
-                    aria-hidden
-                  >
-                    {p.mark}
-                  </span>
-                  <span className="text-[13px] font-medium text-ink leading-snug pt-0.5">
-                    {p.name}
-                  </span>
+              <div
+                className="group flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-5 shadow-[var(--shadow-card)] transition-colors hover:border-primary/25"
+                title={p.name}
+              >
+                <div className="relative h-12 w-full">
+                  <Image
+                    src={p.src}
+                    alt={`${p.name} logo`}
+                    fill
+                    sizes="(min-width: 1024px) 180px, (min-width: 640px) 30vw, 45vw"
+                    className="object-contain"
+                  />
                 </div>
+                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted">
+                  {p.short}
+                </span>
               </div>
             </li>
           ))}
         </ul>
+
+        <p className="mt-8 text-[13px] text-ink-subtle">
+          And a growing network of county workforce boards, community
+          organizations, and employer partners.
+        </p>
       </div>
     </section>
   );
@@ -320,7 +354,7 @@ function ThreeWaysIn() {
     },
     {
       icon: <Users size={18} />,
-      title: "Refer someone",
+      title: "Refer a Participant",
       tag: "For partners",
       copy: "Submit a name from your caseload. We take it from there.",
       href: "/refer",
@@ -328,7 +362,7 @@ function ThreeWaysIn() {
     },
     {
       icon: <Sparkle size={18} />,
-      title: "Book an advising call",
+      title: "Book an Advising Call",
       tag: "Free 30 min",
       copy: "Talk through options before you commit to a path.",
       href: "/book",
@@ -492,7 +526,7 @@ function ServicesGrid() {
             </p>
           </div>
           <LinkButton href="/book" variant="primary" size="sm" className="mt-4 self-start">
-            Book a call <ArrowRight size={14} />
+            Book an Advising Call <ArrowRight size={14} />
           </LinkButton>
         </div>
       </div>
@@ -545,32 +579,52 @@ function Audience() {
 }
 
 function OutcomesStrip() {
+  const stats = [
+    { v: "1,284", l: "Total applicants" },
+    { v: "312", l: "Enrolled or placed" },
+    { v: "94%", l: "Reach an advisor in 48h" },
+    { v: "4", l: "Pathway routes" },
+  ];
   return (
     <section className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] items-center">
+      <div className="grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
+        <div className="relative overflow-hidden rounded-2xl border border-line bg-primary/5 shadow-[var(--shadow-card)]">
+          <div className="relative aspect-[4/3] sm:aspect-[5/4] lg:aspect-[4/3]">
+            <Image
+              src="/1.png"
+              alt="Three Career Access Hub graduates holding their diplomas"
+              fill
+              sizes="(min-width: 1024px) 560px, 100vw"
+              className="object-cover"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent"
+            />
+            <span className="absolute left-4 bottom-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-action" />
+              Real participants · Real outcomes
+            </span>
+          </div>
+        </div>
         <div>
           <SectionHeader
             eyebrow="Outcomes"
             title="What it looks like to actually move forward"
-            copy="Every participant leaves Career Access with one of four outcomes — and a real next step on their calendar."
+            copy="Every participant leaves Career Access Hub with one of four outcomes — and a real next step on their calendar."
           />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {[
-            { v: "1,284", l: "Total applicants" },
-            { v: "312", l: "Enrolled or placed" },
-            { v: "94%", l: "Reach an advisor in 48h" },
-            { v: "4", l: "Pathway routes" },
-          ].map((s) => (
-            <Card key={s.l} className="p-5">
-              <div className="text-[28px] font-semibold tabular tracking-tight">
-                {s.v}
-              </div>
-              <div className="text-[12px] uppercase tracking-wider text-ink-subtle mt-1">
-                {s.l}
-              </div>
-            </Card>
-          ))}
+          <div className="mt-8 grid grid-cols-2 gap-4">
+            {stats.map((s) => (
+              <Card key={s.l} className="p-5">
+                <div className="text-[28px] font-semibold tabular tracking-tight">
+                  {s.v}
+                </div>
+                <div className="text-[12px] uppercase tracking-wider text-ink-subtle mt-1">
+                  {s.l}
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -583,22 +637,22 @@ function Stories() {
       quote:
         "I'd been meaning to finish my degree for six years. The advisor walked me through FAFSA in 40 minutes. I start in the fall.",
       name: "Renée B.",
-      role: "Enrolled, Bunker Hill CC",
+      role: "Enrolled, Bergen Community College",
       pathway: "College + FAFSA",
     },
     {
       quote:
-        "I needed a credential, not a four-year plan. They mapped out a 16-week IT cert and helped me cover childcare.",
+        "I needed a credential, not a four-year plan. They mapped out a 16-week IT cert at Lincoln Tech and helped me cover childcare.",
       name: "Aaliyah C.",
       role: "Short-term training",
       pathway: "IT support",
     },
     {
       quote:
-        "I didn't know where to start. We found an electrician apprenticeship that pays while I learn.",
+        "I didn't know where to start. We found an electrician apprenticeship in North Jersey that pays while I learn.",
       name: "Marcus R.",
       role: "Apprenticeship",
-      pathway: "IBEW Local 103",
+      pathway: "IBEW — North Jersey",
     },
   ];
   return (

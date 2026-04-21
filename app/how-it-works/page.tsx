@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SiteShell, PageHeader } from "@/components/site/SiteShell";
 import { SectionHeader } from "@/components/site/SectionHeader";
@@ -92,10 +93,10 @@ export default function HowItWorksPage() {
         actions={
           <>
             <LinkButton href="/apply" variant="primary" size="lg">
-              Apply now <ArrowRight size={16} />
+              Apply Now <ArrowRight size={16} />
             </LinkButton>
             <LinkButton href="/book" variant="secondary" size="lg">
-              Talk first
+              Book an Advising Call
             </LinkButton>
           </>
         }
@@ -142,27 +143,50 @@ export default function HowItWorksPage() {
 
       <section className="bg-white border-y border-line">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
-          <SectionHeader
-            eyebrow="Pathway routing"
-            title="Where your application goes — and why"
-            copy="After intake, every participant is routed to one of four pathways. You'll see your assignment in the portal, and your advisor will explain why."
-          />
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {pathways.map((p) => (
-              <Card key={p.name} className="p-5">
-                <div className="flex items-center gap-2.5">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-primary">
-                    {p.icon}
-                  </span>
-                  <h3 className="text-[15px] font-semibold tracking-tight">
-                    {p.name}
-                  </h3>
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.15fr] lg:items-start">
+            <div className="relative overflow-hidden rounded-2xl border border-line bg-canvas shadow-[var(--shadow-card)]">
+              <div className="relative aspect-[4/3]">
+                <Image
+                  src="/4.jpeg"
+                  alt="Apprentices and an instructor working on an electrical project"
+                  fill
+                  sizes="(min-width: 1024px) 520px, 100vw"
+                  className="object-cover object-center scale-[1.04]"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent"
+                />
+                <div className="absolute left-4 bottom-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-action" />
+                  Apprenticeship · In the field
                 </div>
-                <p className="mt-3 text-[13px] text-ink-muted leading-6">
-                  {p.desc}
-                </p>
-              </Card>
-            ))}
+              </div>
+            </div>
+            <div>
+              <SectionHeader
+                eyebrow="Pathway routing"
+                title="Where your application goes — and why"
+                copy="After intake, every participant is routed to one of four pathways. You'll see your assignment in the portal, and your advisor will explain why."
+              />
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                {pathways.map((p) => (
+                  <Card key={p.name} className="p-5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-primary">
+                        {p.icon}
+                      </span>
+                      <h3 className="text-[15px] font-semibold tracking-tight">
+                        {p.name}
+                      </h3>
+                    </div>
+                    <p className="mt-3 text-[13px] text-ink-muted leading-6">
+                      {p.desc}
+                    </p>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -180,7 +204,7 @@ export default function HowItWorksPage() {
                 "Advisor responds within two business days",
                 "Plan delivered in writing — not just over the phone",
                 "Reminders for documents and appointments",
-                "Confidential and free, paid by partner agencies",
+                "Confidential and free for participants",
               ].map((s) => (
                 <li
                   key={s}
@@ -213,7 +237,7 @@ export default function HowItWorksPage() {
               {[
                 {
                   q: "Is there a cost?",
-                  a: "No. Career Access is free and confidential.",
+                  a: "No. Career Access Hub is free and confidential.",
                 },
                 {
                   q: "How long does it take?",

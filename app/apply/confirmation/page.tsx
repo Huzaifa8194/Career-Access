@@ -45,7 +45,7 @@ export default function ApplyConfirmationPage() {
               your plan right away.
             </p>
             <LinkButton href="/book" variant="primary" size="sm">
-              Book a call
+              Book an Advising Call
             </LinkButton>
           </FlowSidebar>
         </div>

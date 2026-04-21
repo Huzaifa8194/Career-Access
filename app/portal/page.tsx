@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Logo, ArrowRight, Compass, Users, ChartBar } from "@/components/icons";
+import { ArrowRight, Compass, Users, ChartBar } from "@/components/icons";
+import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, Checkbox } from "@/components/ui/Field";
+import { Field, Input } from "@/components/ui/Field";
 
 const demoRoles = [
   {
@@ -38,12 +39,7 @@ export default function PortalSignInPage() {
     <div className="min-h-screen flex flex-col bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Logo size={26} />
-            <span className="font-semibold text-[15px] tracking-tight">
-              Career Access
-            </span>
-          </Link>
+          <Brand size="sm" />
           <Link
             href="/"
             className="text-[13px] font-medium text-ink-muted hover:text-ink"
@@ -62,7 +58,7 @@ export default function PortalSignInPage() {
               Participant & staff sign-in
             </div>
             <h1 className="mt-3 text-[28px] sm:text-[32px] font-semibold tracking-tight leading-[1.1]">
-              Sign in to Career Access
+              Sign in to Career Access Hub
             </h1>
             <p className="mt-2 text-[14px] text-ink-muted leading-6">
               Use the email you applied with. Staff use their assigned account.

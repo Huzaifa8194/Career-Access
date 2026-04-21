@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/icons";
+import { Brand } from "@/components/site/Brand";
 import { Stepper, type Step } from "@/components/ui/Stepper";
 
 export function FlowShell({
@@ -21,12 +21,7 @@ export function FlowShell({
     <div className="min-h-screen flex flex-col bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Logo size={26} />
-            <span className="font-semibold text-[15px] tracking-tight">
-              Career Access
-            </span>
-          </Link>
+          <Brand size="sm" />
           {steps && typeof current === "number" && (
             <div className="hidden md:block">
               <Stepper steps={steps} current={current} />

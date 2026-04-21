@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Logo } from "@/components/icons";
+import { Brand } from "@/components/site/Brand";
 import { LinkButton } from "@/components/ui/Button";
 
 const nav = [
@@ -20,19 +20,16 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-5 py-3 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Logo size={28} />
-          <span className="font-semibold text-[15px] tracking-tight">
-            Career Access
-          </span>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 lg:px-8">
+        <div className="flex items-center gap-3 min-w-0">
+          <Brand />
           <span
             aria-hidden
-            className="hidden sm:inline-flex h-5 items-center rounded border border-line px-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-subtle"
+            className="hidden xl:inline-flex h-5 items-center rounded-full border border-line bg-canvas/60 px-2 text-[10px] font-medium uppercase tracking-wider text-ink-subtle"
           >
-            MA Pilot
+            Serving Bergen · Passaic · Hudson
           </span>
-        </Link>
+        </div>
 
         <nav className="hidden md:flex items-center gap-1 text-[14px]">
           {nav.map((item) => {

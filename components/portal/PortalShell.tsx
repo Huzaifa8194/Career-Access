@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 import {
-  Logo,
   Bell,
   Search,
   Inbox,
@@ -91,7 +91,7 @@ const roleNav: Record<string, { label: string; items: NavItem[] }> = {
 const userByRole: Record<string, { name: string; meta: string; initials: string }> = {
   participant: {
     name: "Jordan Hayes",
-    meta: "Participant · Boston, MA",
+    meta: "Participant · Paterson, NJ",
     initials: "JH",
   },
   advisor: {
@@ -136,13 +136,26 @@ export function PortalShell({
           ].join(" ")}
         >
           <div className="px-5 py-4 border-b border-line">
-            <Link href="/" className="flex items-center gap-2.5">
-              <Logo size={26} />
-              <div className="leading-tight">
-                <div className="text-[14px] font-semibold tracking-tight">
-                  Career Access
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 min-w-0"
+              aria-label="Career Access Hub — Home"
+            >
+              <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md">
+                <Image
+                  src="/logo.png"
+                  alt=""
+                  fill
+                  priority
+                  sizes="36px"
+                  className="object-contain scale-[1.18]"
+                />
+              </span>
+              <div className="min-w-0 leading-tight">
+                <div className="text-[14px] font-semibold tracking-tight truncate">
+                  Career Access Hub
                 </div>
-                <div className="text-[11px] uppercase tracking-wider text-ink-subtle">
+                <div className="text-[10.5px] uppercase tracking-[0.1em] text-ink-subtle truncate">
                   {nav.label} portal
                 </div>
               </div>

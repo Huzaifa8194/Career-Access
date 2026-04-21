@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Logo, ArrowRight, Check } from "@/components/icons";
+import { ArrowRight, Check } from "@/components/icons";
+import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Checkbox } from "@/components/ui/Field";
 
@@ -13,12 +14,7 @@ export default function SignUpPage() {
     <div className="min-h-screen flex flex-col bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Logo size={26} />
-            <span className="font-semibold text-[15px] tracking-tight">
-              Career Access
-            </span>
-          </Link>
+          <Brand size="sm" />
           <Link
             href="/portal"
             className="text-[13px] font-medium text-ink-muted hover:text-ink"
@@ -125,7 +121,7 @@ export default function SignUpPage() {
                   <Checkbox
                     required
                     label="I agree to the Terms and Privacy Policy"
-                    description="We never sell your information. Your data is used only to deliver Career Access services."
+                    description="We never sell your information. Your data is used only to deliver Career Access Hub services."
                   />
 
                   <Button type="submit" size="lg" className="w-full">
