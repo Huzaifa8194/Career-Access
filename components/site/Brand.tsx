@@ -30,7 +30,7 @@ export function Brand({
 }: BrandProps) {
   const markBox = markOnly
     ? size === "sm"
-      ? "h-10 w-[15.5rem]"
+      ? "h-27 w-[25.5rem]"
       : size === "lg"
         ? "h-12 w-[17rem]"
         : "h-11 w-[16rem]"
