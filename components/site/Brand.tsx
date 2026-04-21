@@ -28,8 +28,13 @@ export function Brand({
   tone = "default",
   className,
 }: BrandProps) {
-  const markBox =
-    size === "sm"
+  const markBox = markOnly
+    ? size === "sm"
+      ? "h-7 w-[9.5rem]"
+      : size === "lg"
+        ? "h-10 w-[13.5rem]"
+        : "h-8 w-[11.25rem]"
+    : size === "sm"
       ? "h-8 w-8"
       : size === "lg"
         ? "h-11 w-11"
@@ -67,11 +72,14 @@ export function Brand({
       >
         <Image
           src="/logo.png"
-          alt=""
+          alt={markOnly ? "Career Access Hub by EmployReady Partners" : ""}
           fill
           priority
-          sizes="44px"
-          className="object-contain scale-[1.18] select-none"
+          sizes={markOnly ? "220px" : "44px"}
+          className={[
+            "object-contain select-none",
+            markOnly ? "object-left scale-[1.03]" : "scale-[1.18]",
+          ].join(" ")}
         />
       </span>
       {!markOnly && (

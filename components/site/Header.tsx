@@ -20,16 +20,8 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 lg:px-8">
-        <div className="flex items-center gap-3 min-w-0">
-          <Brand />
-          <span
-            aria-hidden
-            className="hidden xl:inline-flex h-5 items-center rounded-full border border-line bg-canvas/60 px-2 text-[10px] font-medium uppercase tracking-wider text-ink-subtle"
-          >
-            Serving Bergen · Passaic · Hudson
-          </span>
-        </div>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-5 lg:px-8">
+        <Brand markOnly size="sm" className="shrink-0" />
 
         <nav className="hidden md:flex items-center gap-1 text-[14px]">
           {nav.map((item) => {
@@ -56,7 +48,7 @@ export function Header() {
             Sign in
           </LinkButton>
           <LinkButton href="/apply" variant="primary" size="sm">
-            Apply now
+            Apply Now
           </LinkButton>
         </div>
 
@@ -93,7 +85,10 @@ export function Header() {
 
       {open && (
         <div className="md:hidden border-t border-line bg-white">
-          <div className="mx-auto max-w-6xl px-5 py-3 flex flex-col gap-1">
+          <div className="mx-auto max-w-6xl px-4 py-3 sm:px-5 flex flex-col gap-1">
+            <div className="px-3 pb-2 text-[11px] font-medium text-ink-subtle">
+              Serving Bergen, Passaic, and Hudson Counties
+            </div>
             {nav.map((item) => (
               <Link
                 key={item.href}
@@ -109,7 +104,7 @@ export function Header() {
                 Sign in
               </LinkButton>
               <LinkButton href="/apply" variant="primary" size="sm">
-                Apply now
+                Apply Now
               </LinkButton>
             </div>
           </div>
