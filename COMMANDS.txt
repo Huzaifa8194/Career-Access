@@ -26,12 +26,12 @@ Environment variables (.env.local)
 ----------------------------------
 Create a file named `.env.local` at the project root with:
 
-   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDI5oB9Fdae7qBIRfuAKZwIZbQ3sUKg88U
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=careeraccesshub-d3d27.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=careeraccesshub-d3d27
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=careeraccesshub-d3d27.firebasestorage.app
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=969717593106
-   NEXT_PUBLIC_FIREBASE_APP_ID=1:969717593106:web:f37927b0cfafbf22bc94cb
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyAbqVFPyLBwr1lciemmTbE2dsno3hJjGhU
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=career-access-hub.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=career-access-hub
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=career-access-hub.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=675319541271
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:675319541271:web:f1f7bf0b55797d9b9df652
 
 To also enable local emulators during dev, append:
 
@@ -54,7 +54,7 @@ Firebase login & project
 
 5) Point the CLI to the project (already set in .firebaserc):
 
-   firebase use careeraccesshub-d3d27
+   firebase use career-access-hub
 
 
 Deploy Firestore & Storage rules
@@ -139,7 +139,7 @@ Troubleshooting
 ---------------
 - Firebase rules deploy fails with "Project not found":
      firebase use --add
-  and choose careeraccesshub-d3d27.
+  and choose career-access-hub.
 
 - "Missing or insufficient permissions" at runtime:
   Confirm your `users/<uid>` document exists and that `role` is set to
@@ -165,11 +165,11 @@ Do this in order:
 1) Confirm you are on the correct Firebase project:
 
    firebase projects:list
-   firebase use careeraccesshub-d3d27
+   firebase use career-access-hub
 
 2) Create Firestore database in Firebase Console (one-time, no CLI command):
 
-   https://console.firebase.google.com/project/careeraccesshub-d3d27/firestore
+   https://console.firebase.google.com/project/career-access-hub/firestore
 
    Click "Create database", choose:
    - Database ID: (default)

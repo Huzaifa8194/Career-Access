@@ -16,12 +16,12 @@ import {
 } from "firebase/storage";
 
 const EXPECTED = {
-  apiKey: "AIzaSyDI5oB9Fdae7qBIRfuAKZwIZbQ3sUKg88U",
-  authDomain: "careeraccesshub-d3d27.firebaseapp.com",
-  projectId: "careeraccesshub-d3d27",
-  storageBucket: "careeraccesshub-d3d27.firebasestorage.app",
-  messagingSenderId: "969717593106",
-  appId: "1:969717593106:web:f37927b0cfafbf22bc94cb",
+  apiKey: "AIzaSyAbqVFPyLBwr1lciemmTbE2dsno3hJjGhU",
+  authDomain: "career-access-hub.firebaseapp.com",
+  projectId: "career-access-hub",
+  storageBucket: "career-access-hub.firebasestorage.app",
+  messagingSenderId: "675319541271",
+  appId: "1:675319541271:web:f1f7bf0b55797d9b9df652",
   firestoreDatabaseId: "(default)",
 } as const;
 
