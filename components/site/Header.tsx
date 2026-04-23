@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Brand } from "@/components/site/Brand";
-import { LinkButton } from "@/components/ui/Button";
+import { useAuth } from "@/lib/firebase/auth";
+import { Button, LinkButton } from "@/components/ui/Button";
 
 const nav = [
   { href: "/how-it-works", label: "How it works" },
@@ -17,6 +18,27 @@ const nav = [
 export function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { user, profile, loading, signOut } = useAuth();
+  const role = profile?.role ?? "participant";
+  const portalHref =
+    role === "admin"
+      ? "/portal/admin"
+      : role === "advisor"
+      ? "/portal/advisor"
+      : "/portal/participant";
+  const name =
+    profile?.fullName ??
+    user?.displayName ??
+    user?.email?.split("@")[0] ??
+    "there";
+
+  async function handleSignOut() {
+    try {
+      await signOut();
+      setOpen(false);
+    } catch {
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
@@ -44,12 +66,29 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex items-center gap-2">
-          <LinkButton href="/portal" variant="ghost" size="sm">
-            Sign in
-          </LinkButton>
-          <LinkButton href="/apply" variant="primary" size="sm">
-            Apply Now
-          </LinkButton>
+          {loading ? (
+            <Button variant="secondary" size="sm" disabled>
+              Loading...
+            </Button>
+          ) : user ? (
+            <>
+              <LinkButton href={portalHref} variant="ghost" size="sm">
+                Hi, {name.split(" ")[0]}
+              </LinkButton>
+              <Button variant="secondary" size="sm" onClick={handleSignOut}>
+                Sign out
+              </Button>
+            </>
+          ) : (
+            <>
+              <LinkButton href="/portal" variant="ghost" size="sm">
+                Sign in
+              </LinkButton>
+              <LinkButton href="/apply" variant="primary" size="sm">
+                Apply Now
+              </LinkButton>
+            </>
+          )}
         </div>
 
         <button
@@ -100,12 +139,33 @@ export function Header() {
               </Link>
             ))}
             <div className="mt-2 grid grid-cols-2 gap-2 pt-2 border-t border-line">
-              <LinkButton href="/portal" variant="secondary" size="sm">
-                Sign in
-              </LinkButton>
-              <LinkButton href="/apply" variant="primary" size="sm">
-                Apply Now
-              </LinkButton>
+              {loading ? (
+                <Button variant="secondary" size="sm" disabled>
+                  Loading...
+                </Button>
+              ) : user ? (
+                <>
+                  <LinkButton
+                    href={portalHref}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Open portal
+                  </LinkButton>
+                  <Button variant="primary" size="sm" onClick={handleSignOut}>
+                    Sign out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <LinkButton href="/portal" variant="secondary" size="sm">
+                    Sign in
+                  </LinkButton>
+                  <LinkButton href="/apply" variant="primary" size="sm">
+                    Apply Now
+                  </LinkButton>
+                </>
+              )}
             </div>
           </div>
         </div>

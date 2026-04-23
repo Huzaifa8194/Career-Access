@@ -153,3 +153,39 @@ Troubleshooting
 
 - Want a fresh emulator DB each run:
      firebase emulators:start --import=./emulator-data --export-on-exit
+
+
+Fix: "Firestore Database '(default)' not found"
+-----------------------------------------------
+If you see:
+  Firestore (...) Database '(default)' not found
+
+Do this in order:
+
+1) Confirm you are on the correct Firebase project:
+
+   firebase projects:list
+   firebase use careeraccesshub-d3d27
+
+2) Create Firestore database in Firebase Console (one-time, no CLI command):
+
+   https://console.firebase.google.com/project/careeraccesshub-d3d27/firestore
+
+   Click "Create database", choose:
+   - Database ID: (default)
+   - Mode: Production (or Test for quick local checks)
+   - Region: pick the same region you plan to use for hosting/functions.
+
+3) Restart your local app:
+
+   npm run dev
+
+4) (Optional) If you want to avoid production while testing, run emulators:
+
+   In `.env.local` set:
+      NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true
+      NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1
+
+   Then run:
+      firebase emulators:start
+      npm run dev
