@@ -185,9 +185,9 @@ export async function fetchAdminSnapshot(): Promise<AdminSnapshot> {
     Enrolled: demoStageCounts.Enrolled ?? 0,
     Inactive: demoParticipants.filter((p) => p.status === "Inactive").length,
   };
-  const weekAgo = daysAgo(new Date(), 7);
+  const demoWeekAgo = daysAgo(new Date(), 7);
   const demoNewThisWeek = demoParticipants.filter(
-    (p) => new Date(p.appliedAt) >= weekAgo
+    (p) => new Date(p.appliedAt) >= demoWeekAgo
   ).length;
 
   return {
