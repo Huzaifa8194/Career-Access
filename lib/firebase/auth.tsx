@@ -19,7 +19,7 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getDoc, setDoc } from "firebase/firestore";
-import { getFirebaseAuth, loadAnalytics } from "./config";
+import { getFirebaseApp, getFirebaseAuth, loadAnalytics } from "./config";
 import { nowTimestamp, type PortalRole, userDoc } from "./firestore";
 export type { PortalRole } from "./firestore";
 
@@ -55,6 +55,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    // If the app is pointed at a different Firebase project than before,
+    // clear the previous auth session to avoid accounts:lookup 400 errors.
+    if (typeof window === "undefined") return;
+    const markerKey = "cah:firebase-project-id";
+    const currentProject = getFirebaseApp().options.projectId ?? "";
+    const previousProject = window.localStorage.getItem(markerKey) ?? "";
+    if (previousProject && currentProject && previousProject !== currentProject) {
+      void fbSignOut(getFirebaseAuth()).catch(() => {
+        // best effort
+      });
+    }
+    window.localStorage.setItem(markerKey, currentProject);
+  }, []);
 
   const hydrate = useCallback(async (fbu: FirebaseUser | null): Promise<AppUser | null> => {
     if (!fbu) {

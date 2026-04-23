@@ -44,6 +44,11 @@ function mapAuthError(code: string | null | undefined): string {
       return "Too many attempts. Try again in a minute.";
     case "auth/network-request-failed":
       return "Network error — check your connection.";
+    case "auth/invalid-api-key":
+      return "Firebase API key/project config is invalid or mismatched.";
+    case "auth/user-token-expired":
+    case "auth/invalid-user-token":
+      return "Your old session token is invalid. Refresh and sign in again.";
     default:
       return "We couldn't sign you in. Please try again.";
   }
