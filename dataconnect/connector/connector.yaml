@@ -1,0 +1,6 @@
+connectorId: "career-access"
+generate:
+  javascriptSdk:
+    outputDir: "../../dataconnect-generated/js/career-access-connector"
+    package: "@dataconnect/generated"
+    packageJsonDir: "../../"

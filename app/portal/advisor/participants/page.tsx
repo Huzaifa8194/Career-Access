@@ -1,11 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { participants, type ParticipantStatus } from "@/lib/data";
+import { type ParticipantStatus } from "@/lib/data";
 import { Search, ArrowRight } from "@/components/icons";
-
-export const metadata = { title: "Participants" };
+import {
+  fetchAllParticipants,
+  type PortalParticipant,
+} from "@/lib/services/participants";
 
 const statusTone: Record<
   ParticipantStatus,
@@ -19,7 +25,45 @@ const statusTone: Record<
   Inactive: "muted",
 };
 
+type Filter = "All" | "Advising" | "Intake complete" | "Screened" | "Inactive";
+
 export default function AdvisorParticipantsPage() {
+  return (
+    <RequireAuth requiredRole="advisor">
+      <Inner />
+    </RequireAuth>
+  );
+}
+
+function Inner() {
+  const [rows, setRows] = useState<PortalParticipant[]>([]);
+  const [filter, setFilter] = useState<Filter>("All");
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const data = await fetchAllParticipants();
+      if (!cancelled) setRows(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const pool = rows.filter((p) => filter === "All" || p.status === filter);
+    if (!query.trim()) return pool;
+    const q = query.trim().toLowerCase();
+    return pool.filter(
+      (p) =>
+        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q) ||
+        (p.zip ?? "").toLowerCase().includes(q) ||
+        (p.pathway ?? "").toLowerCase().includes(q)
+    );
+  }, [rows, filter, query]);
+
   return (
     <PortalShell
       role="advisor"
@@ -33,6 +77,8 @@ export default function AdvisorParticipantsPage() {
           />
           <input
             type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name, ZIP, or program"
             className="h-9 w-72 rounded-md border border-line bg-white pl-9 pr-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
@@ -40,21 +86,26 @@ export default function AdvisorParticipantsPage() {
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {["All", "Advising", "Intake complete", "Screened", "Inactive"].map(
-          (f, i) => (
+        {(
+          ["All", "Advising", "Intake complete", "Screened", "Inactive"] as Filter[]
+        ).map((f) => {
+          const active = filter === f;
+          return (
             <button
               key={f}
+              type="button"
+              onClick={() => setFilter(f)}
               className={[
                 "h-8 rounded-md px-3 text-[13px] font-medium border transition-colors",
-                i === 0
+                active
                   ? "bg-primary text-white border-primary"
                   : "bg-white text-ink-muted border-line hover:text-ink",
               ].join(" ")}
             >
               {f}
             </button>
-          )
-        )}
+          );
+        })}
       </div>
 
       <Card className="overflow-hidden">
@@ -72,7 +123,7 @@ export default function AdvisorParticipantsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {participants.map((p) => (
+              {filtered.map((p) => (
                 <tr key={p.id} className="hover:bg-canvas/50">
                   <Td>
                     <Link
@@ -87,7 +138,7 @@ export default function AdvisorParticipantsPage() {
                   </Td>
                   <Td>{p.pathway}</Td>
                   <Td>
-                    <Badge tone={statusTone[p.status]}>{p.status}</Badge>
+                    <Badge tone={statusTone[p.status] ?? "muted"}>{p.status}</Badge>
                   </Td>
                   <Td>{p.source}</Td>
                   <Td className="text-ink-muted">{p.lastActivity}</Td>

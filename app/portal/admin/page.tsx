@@ -1,17 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { PortalShell, StatCard } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
-import {
-  participants,
-  adminMetrics,
-  pipelineStages,
-  type ParticipantStatus,
-} from "@/lib/data";
+import { pipelineStages, type ParticipantStatus } from "@/lib/data";
 import { ArrowRight, ChartBar } from "@/components/icons";
-
-export const metadata = { title: "Dashboard Overview" };
+import { fetchAdminSnapshot, type AdminSnapshot } from "@/lib/services/admin";
 
 const statusTone: Record<
   ParticipantStatus,
@@ -26,13 +24,43 @@ const statusTone: Record<
 };
 
 export default function AdminOverviewPage() {
-  const recent = participants.slice(0, 8);
+  return (
+    <RequireAuth requiredRole="admin">
+      <AdminOverviewInner />
+    </RequireAuth>
+  );
+}
+
+function AdminOverviewInner() {
+  const [snap, setSnap] = useState<AdminSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchAdminSnapshot();
+        if (!cancelled) setSnap(data);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const stageCount = (k: ParticipantStatus) => snap?.stageCounts?.[k] ?? 0;
 
   return (
     <PortalShell
       role="admin"
       title="Dashboard Overview"
-      subtitle="Operational view across all applicants and partners."
+      subtitle={
+        snap?.live
+          ? "Operational view across all applicants and partners."
+          : "Operational view — showing sample data until the Firebase backend is deployed."
+      }
       actions={
         <>
           <LinkButton
@@ -51,30 +79,27 @@ export default function AdminOverviewPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard
           label="Total Applicants"
-          value={adminMetrics.totalApplicants.toLocaleString()}
-          delta="+12% MoM"
+          value={(snap?.totalApplicants ?? 0).toLocaleString()}
+          delta={loading ? "Loading…" : snap?.live ? undefined : "Demo data"}
           tone="primary"
         />
         <StatCard
           label="New This Week"
-          value={adminMetrics.newThisWeek}
-          delta="+8 vs. last"
+          value={snap?.newThisWeek ?? 0}
           tone="success"
         />
         <StatCard
           label="Calls Scheduled"
-          value={adminMetrics.callsScheduled}
+          value={snap?.callsScheduled ?? 0}
           hint="Next 5 business days"
         />
         <StatCard
           label="Enrolled"
-          value={adminMetrics.enrolled}
-          delta="+19 this month"
+          value={snap?.enrolled ?? 0}
           tone="success"
         />
       </div>
 
-      {/* Participants by stage */}
       <Card className="mb-6">
         <CardHeader
           title="Participants by stage"
@@ -91,9 +116,7 @@ export default function AdminOverviewPage() {
         <CardBody>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {pipelineStages.map((stage) => {
-              const count = participants.filter(
-                (p) => p.status === stage.key
-              ).length;
+              const count = stageCount(stage.key);
               return (
                 <div
                   key={stage.key}
@@ -127,13 +150,13 @@ export default function AdminOverviewPage() {
             description="Where intake routes participants"
             action={
               <Badge tone="muted" size="sm">
-                Last 30 days
+                {snap?.live ? "Live" : "Sample"}
               </Badge>
             }
           />
           <CardBody className="grid gap-4">
-            {adminMetrics.pathwayDistribution.map((p) => (
-              <DistRow key={p.label} label={p.label} value={p.value} />
+            {(snap?.pathwayDistribution ?? []).map((p) => (
+              <DistRow key={p.label} label={p.label} value={p.pct} />
             ))}
           </CardBody>
         </Card>
@@ -144,8 +167,13 @@ export default function AdminOverviewPage() {
             description="How applicants find us"
           />
           <CardBody className="grid gap-4">
-            {adminMetrics.sourceDistribution.map((p) => (
-              <DistRow key={p.label} label={p.label} value={p.value} accent="muted" />
+            {(snap?.sourceDistribution ?? []).map((p) => (
+              <DistRow
+                key={p.label}
+                label={p.label}
+                value={p.pct}
+                accent="muted"
+              />
             ))}
             <Link
               href="/portal/admin/partners"
@@ -183,7 +211,7 @@ export default function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {recent.map((p) => (
+              {(snap?.recent ?? []).map((p) => (
                 <tr key={p.id} className="hover:bg-canvas/50">
                   <Td>
                     <Link
@@ -197,10 +225,12 @@ export default function AdminOverviewPage() {
                     </div>
                   </Td>
                   <Td>
-                    <Badge tone={statusTone[p.status]}>{p.status}</Badge>
+                    <Badge tone={statusTone[p.status as ParticipantStatus] ?? "muted"}>
+                      {p.status}
+                    </Badge>
                   </Td>
                   <Td>{p.source}</Td>
-                  <Td className="text-ink-muted">{p.appliedAt}</Td>
+                  <Td className="text-ink-muted">{p.submittedAt}</Td>
                   <Td>
                     {p.assignedAdvisor ?? (
                       <span className="text-ink-subtle italic">Unassigned</span>
@@ -216,6 +246,16 @@ export default function AdminOverviewPage() {
                   </Td>
                 </tr>
               ))}
+              {!loading && (snap?.recent ?? []).length === 0 ? (
+                <tr>
+                  <Td className="text-ink-subtle">No applicants yet.</Td>
+                  <Td />
+                  <Td />
+                  <Td />
+                  <Td />
+                  <Td />
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -301,7 +341,7 @@ function Td({
   children,
   className = "",
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }) {
   return <td className={`px-5 py-3 align-top ${className}`}>{children}</td>;

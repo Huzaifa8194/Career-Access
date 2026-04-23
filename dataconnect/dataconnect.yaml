@@ -1,0 +1,12 @@
+specVersion: "v1"
+serviceId: "career-access"
+location: "us-central1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "careeraccessdb"
+      cloudSql:
+        instanceId: "career-access-cloudsql"
+connectorDirs:
+  - "./connector"

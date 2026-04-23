@@ -1,14 +1,60 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Check } from "@/components/icons";
 import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Checkbox } from "@/components/ui/Field";
+import { useAuth } from "@/lib/firebase/auth";
+
+function mapSignUpError(code: string | null | undefined) {
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "An account with that email already exists.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/weak-password":
+      return "Use at least 8 characters for your password.";
+    case "auth/network-request-failed":
+      return "Network error — check your connection.";
+    default:
+      return "We couldn't create your account. Please try again.";
+  }
+}
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const { signUp, signingIn } = useAuth();
+  const [first, setFirst] = useState("");
+  const [last, setLast] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!agreed) {
+      setError("Please agree to the Terms before continuing.");
+      return;
+    }
+    setError(null);
+    try {
+      await signUp({
+        email,
+        password,
+        fullName: `${first.trim()} ${last.trim()}`.trim(),
+        role: "participant",
+      });
+      setSubmitted(true);
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code;
+      setError(mapSignUpError(code));
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -36,15 +82,18 @@ export default function SignUpPage() {
                   Account created
                 </h2>
                 <p className="mt-2 text-[14px] text-ink-muted leading-6">
-                  Verify your email to finish setup. We sent a link.
+                  You can now view your pathway, message your advisor, and
+                  upload documents.
                 </p>
                 <div className="mt-6 grid gap-3">
-                  <Link
-                    href="/portal/participant"
+                  <button
+                    type="button"
+                    onClick={() => router.push("/portal/participant")}
                     className="inline-flex h-11 items-center justify-center rounded-md bg-primary text-white font-medium text-[14px] hover:bg-primary-700"
                   >
-                    Continue to your portal <ArrowRight size={14} className="ml-2" />
-                  </Link>
+                    Continue to your portal{" "}
+                    <ArrowRight size={14} className="ml-2" />
+                  </button>
                   <Link
                     href="/apply"
                     className="text-[13px] font-medium text-primary hover:underline"
@@ -67,19 +116,25 @@ export default function SignUpPage() {
                   message your advisor, and upload documents.
                 </p>
 
-                <form
-                  className="mt-6 grid gap-5"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setSubmitted(true);
-                  }}
-                >
+                <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <Field label="First name" required htmlFor="su-first">
-                      <Input id="su-first" required autoComplete="given-name" />
+                      <Input
+                        id="su-first"
+                        required
+                        value={first}
+                        onChange={(e) => setFirst(e.target.value)}
+                        autoComplete="given-name"
+                      />
                     </Field>
                     <Field label="Last name" required htmlFor="su-last">
-                      <Input id="su-last" required autoComplete="family-name" />
+                      <Input
+                        id="su-last"
+                        required
+                        value={last}
+                        onChange={(e) => setLast(e.target.value)}
+                        autoComplete="family-name"
+                      />
                     </Field>
                   </div>
                   <Field label="Email address" required htmlFor="su-email">
@@ -87,20 +142,10 @@ export default function SignUpPage() {
                       id="su-email"
                       type="email"
                       required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       autoComplete="email"
                       placeholder="you@example.com"
-                    />
-                  </Field>
-                  <Field
-                    label="Mobile phone"
-                    htmlFor="su-phone"
-                    hint="So your advisor can reach you. Optional but recommended."
-                  >
-                    <Input
-                      id="su-phone"
-                      type="tel"
-                      autoComplete="tel"
-                      placeholder="(617) 555-0123"
                     />
                   </Field>
                   <Field
@@ -114,18 +159,37 @@ export default function SignUpPage() {
                       type="password"
                       required
                       minLength={8}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       autoComplete="new-password"
                     />
                   </Field>
 
                   <Checkbox
                     required
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
                     label="I agree to the Terms and Privacy Policy"
                     description="We never sell your information. Your data is used only to deliver Career Access Hub services."
                   />
 
-                  <Button type="submit" size="lg" className="w-full">
-                    Create account <ArrowRight size={16} />
+                  {error ? (
+                    <p
+                      role="alert"
+                      className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
+                    >
+                      {error}
+                    </p>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={signingIn}
+                  >
+                    {signingIn ? "Creating account…" : "Create account"}{" "}
+                    <ArrowRight size={16} />
                   </Button>
                 </form>
 

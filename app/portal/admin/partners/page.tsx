@@ -1,4 +1,5 @@
 import { PortalShell } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
@@ -50,6 +51,14 @@ const partners = [
 ];
 
 export default function AdminPartnersPage() {
+  return (
+    <RequireAuth requiredRole="admin">
+      <Inner />
+    </RequireAuth>
+  );
+}
+
+function Inner() {
   return (
     <PortalShell
       role="admin"

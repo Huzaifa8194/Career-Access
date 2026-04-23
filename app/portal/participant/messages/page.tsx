@@ -1,67 +1,154 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { participantSummary } from "@/lib/data";
+import {
+  fetchMyMessages,
+  sendParticipantMessage,
+  type MessageRow,
+} from "@/lib/services/messaging";
+import { fetchMyParticipant } from "@/lib/services/participants";
 
-type Msg = {
+type LocalMsg = {
+  id: string;
   from: string;
   role: string;
   body: string;
   time: string;
-  mine?: boolean;
+  mine: boolean;
 };
 
-const seed: Msg[] = [
+function formatTime(iso: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+const demoSeed: LocalMsg[] = [
   {
+    id: "demo1",
     from: "Maya Robinson",
     role: "Your advisor",
-    body: "Welcome aboard, Jordan. I pulled your transcript — let's review FAFSA on Tuesday at 10:30. I'll send a video link.",
+    body:
+      "Welcome aboard, Jordan. I pulled your transcript — let's review FAFSA on Tuesday at 10:30. I'll send a video link.",
     time: "Apr 14 · 9:42 AM",
+    mine: false,
   },
   {
-    from: "Jordan Hayes",
+    id: "demo2",
+    from: "You",
     role: "Me",
     body: "Sounds great. I'll bring my tax forms.",
     time: "Apr 14 · 10:11 AM",
     mine: true,
   },
   {
+    id: "demo3",
     from: "Maya Robinson",
     role: "Your advisor",
     body: "Perfect — also please upload your photo ID before we meet.",
     time: "Apr 14 · 10:14 AM",
+    mine: false,
   },
 ];
 
 export default function MessagesPage() {
-  const [messages, setMessages] = useState<Msg[]>(seed);
-  const [draft, setDraft] = useState("");
+  return (
+    <RequireAuth requiredRole="participant">
+      <Inner />
+    </RequireAuth>
+  );
+}
 
-  function send() {
+function Inner() {
+  const [messages, setMessages] = useState<LocalMsg[]>(demoSeed);
+  const [draft, setDraft] = useState("");
+  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [{ rows, live: msgsLive }, participant] = await Promise.all([
+        fetchMyMessages(),
+        fetchMyParticipant(),
+      ]);
+      if (cancelled) return;
+      setLive(msgsLive);
+      setParticipantId(participant?.id ?? null);
+      if (msgsLive && rows.length > 0) {
+        setMessages(
+          rows.map((r: MessageRow) => ({
+            id: r.id,
+            from: r.sender?.fullName ?? r.senderRole,
+            role: r.senderRole,
+            body: r.message,
+            time: formatTime(r.createdAt),
+            mine: r.senderRole === "participant",
+          }))
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function send() {
     if (!draft.trim()) return;
-    setMessages((m) => [
-      ...m,
-      {
-        from: "Jordan Hayes",
-        role: "Me",
-        body: draft.trim(),
-        time: "Just now",
-        mine: true,
-      },
-    ]);
+    if (!participantId) {
+      setError("Complete your intake first — messages are tied to your case.");
+      return;
+    }
+    const body = draft.trim();
+    const local: LocalMsg = {
+      id: `local_${Date.now()}`,
+      from: "You",
+      role: "participant",
+      body,
+      time: "Just now",
+      mine: true,
+    };
+    setMessages((m) => [...m, local]);
     setDraft("");
+    setSending(true);
+    setError(null);
+    try {
+      await sendParticipantMessage({
+        participantId,
+        message: body,
+        senderRole: "participant",
+      });
+    } catch (err) {
+      console.error(err);
+      setError("Message not delivered. We'll retry automatically.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
     <PortalShell
       role="participant"
       title="Messages"
-      subtitle="Direct line to your advisor — replies within one business day."
+      subtitle={
+        live
+          ? "Direct line to your advisor — replies within one business day."
+          : "Direct line to your advisor — showing a sample thread until messaging is live."
+      }
     >
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <Card>
@@ -89,9 +176,7 @@ export default function MessagesPage() {
                 <p className="mt-2 text-[13px] text-ink-muted line-clamp-2">
                   {m.preview}
                 </p>
-                <div className="mt-2 text-[11px] text-ink-subtle">
-                  {m.time}
-                </div>
+                <div className="mt-2 text-[11px] text-ink-subtle">{m.time}</div>
               </button>
             ))}
           </CardBody>
@@ -104,9 +189,9 @@ export default function MessagesPage() {
             action={<Badge tone="success" dot>Active</Badge>}
           />
           <CardBody className="flex-1 grid content-end gap-3">
-            {messages.map((m, i) => (
+            {messages.map((m) => (
               <div
-                key={i}
+                key={m.id}
                 className={[
                   "max-w-[80%] rounded-lg p-3 text-[14px] leading-6",
                   m.mine
@@ -135,12 +220,15 @@ export default function MessagesPage() {
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Write a message…"
             />
+            {error ? (
+              <p className="text-[12px] text-danger">{error}</p>
+            ) : null}
             <div className="flex items-center justify-between">
               <span className="text-[12px] text-ink-subtle">
                 Replies typically within 1 business day
               </span>
-              <Button onClick={send} disabled={!draft.trim()}>
-                Send message
+              <Button onClick={send} disabled={!draft.trim() || sending}>
+                {sending ? "Sending…" : "Send message"}
               </Button>
             </div>
           </div>

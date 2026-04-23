@@ -1,0 +1,383 @@
+# Career Access Hub — Data Connect queries
+
+########################################################################
+# USERS
+########################################################################
+
+query GetCurrentUser @auth(level: USER) {
+  user(key: { id_expr: "auth.uid" }) {
+    id
+    fullName
+    email
+    role
+    createdAt
+  }
+}
+
+query ListAdvisors @auth(level: USER) {
+  users(where: { role: { eq: "advisor" } }, orderBy: [{ fullName: ASC }]) {
+    id
+    fullName
+    email
+  }
+}
+
+########################################################################
+# PARTICIPANTS
+########################################################################
+
+# Participant self-view: the one row linked to the current auth user.
+query GetMyParticipant @auth(level: USER) {
+  participants(
+    where: { userId: { eq_expr: "auth.uid" } }
+    orderBy: [{ submittedAt: DESC }]
+    limit: 1
+  ) {
+    id
+    firstName
+    lastName
+    email
+    phone
+    preferredContactMethod
+    address
+    city
+    state
+    zipCode
+    educationLevel
+    currentlyEnrolled
+    programInterest
+    employed
+    jobTitle
+    supportNeeded
+    pathway
+    status
+    source
+    submittedAt
+    lastActivityAt
+    riskFlag
+    assignedAdvisor { id fullName email }
+  }
+}
+
+query ListAllParticipants @auth(level: USER) {
+  participants(orderBy: [{ submittedAt: DESC }]) {
+    id
+    firstName
+    lastName
+    email
+    phone
+    city
+    state
+    zipCode
+    pathway
+    status
+    source
+    submittedAt
+    lastActivityAt
+    riskFlag
+    educationLevel
+    supportNeeded
+    assignedAdvisor { id fullName email }
+  }
+}
+
+query ListParticipantsByAdvisor($advisorId: String!) @auth(level: USER) {
+  participants(
+    where: { assignedAdvisorId: { eq: $advisorId } }
+    orderBy: [{ lastActivityAt: DESC }]
+  ) {
+    id
+    firstName
+    lastName
+    email
+    pathway
+    status
+    source
+    lastActivityAt
+    riskFlag
+  }
+}
+
+query ListParticipantsByStatus($status: String!) @auth(level: USER) {
+  participants(
+    where: { status: { eq: $status } }
+    orderBy: [{ submittedAt: DESC }]
+  ) {
+    id
+    firstName
+    lastName
+    email
+    pathway
+    status
+    source
+    submittedAt
+    assignedAdvisor { id fullName }
+  }
+}
+
+query GetParticipant($id: UUID!) @auth(level: USER) {
+  participant(key: { id: $id }) {
+    id
+    firstName
+    lastName
+    email
+    phone
+    preferredContactMethod
+    address
+    city
+    state
+    zipCode
+    educationLevel
+    currentlyEnrolled
+    programInterest
+    employed
+    jobTitle
+    supportNeeded
+    pathway
+    status
+    source
+    submittedAt
+    lastActivityAt
+    riskFlag
+    consentAccuracy
+    consentContact
+    consentDataShare
+    assignedAdvisor { id fullName email }
+  }
+}
+
+query GetParticipantDetail($id: UUID!) @auth(level: USER) {
+  participant(key: { id: $id }) {
+    id
+    firstName
+    lastName
+    email
+    phone
+    city
+    state
+    zipCode
+    pathway
+    status
+    source
+    submittedAt
+    lastActivityAt
+    riskFlag
+    assignedAdvisor { id fullName }
+  }
+  applications(
+    where: { participantId: { eq: $id } }
+    orderBy: [{ createdAt: DESC }]
+    limit: 5
+  ) {
+    id
+    status
+    pathwayRecommendation
+    createdAt
+  }
+  notes(
+    where: { participantId: { eq: $id } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    content
+    kind
+    createdAt
+    advisor { id fullName }
+  }
+  documents(
+    where: { participantId: { eq: $id } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    fileName
+    fileUrl
+    status
+    sizeBytes
+    createdAt
+  }
+  tasks(
+    where: { participantId: { eq: $id } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    title
+    description
+    status
+    priority
+    dueDate
+  }
+  appointments(
+    where: { participantId: { eq: $id } }
+    orderBy: [{ scheduledAt: ASC }]
+  ) {
+    id
+    appointmentType
+    scheduledAt
+    timezone
+    status
+    advisor { id fullName }
+  }
+}
+
+########################################################################
+# APPLICATIONS
+########################################################################
+
+query ListApplications($limit: Int) @auth(level: USER) {
+  applications(orderBy: [{ createdAt: DESC }], limit: $limit) {
+    id
+    status
+    pathwayRecommendation
+    createdAt
+    participant {
+      id
+      firstName
+      lastName
+      email
+      pathway
+      status
+      source
+      submittedAt
+      assignedAdvisor { id fullName }
+    }
+  }
+}
+
+########################################################################
+# REFERRALS
+########################################################################
+
+query ListReferrals @auth(level: USER) {
+  referrals(orderBy: [{ createdAt: DESC }]) {
+    id
+    referrerName
+    organizationName
+    email
+    applicantFirstName
+    applicantLastName
+    applicantEmail
+    zipCode
+    programInterest
+    urgency
+    reason
+    status
+    createdAt
+  }
+}
+
+########################################################################
+# APPOINTMENTS
+########################################################################
+
+query ListMyAppointments @auth(level: USER) {
+  appointments(
+    where: { participant: { userId: { eq_expr: "auth.uid" } } }
+    orderBy: [{ scheduledAt: ASC }]
+  ) {
+    id
+    appointmentType
+    scheduledAt
+    timezone
+    status
+    advisor { id fullName }
+  }
+}
+
+query ListAllAppointments @auth(level: USER) {
+  appointments(orderBy: [{ scheduledAt: ASC }]) {
+    id
+    appointmentType
+    scheduledAt
+    timezone
+    status
+    contactName
+    contactEmail
+    participant { id firstName lastName }
+    advisor { id fullName }
+  }
+}
+
+########################################################################
+# DOCUMENTS / MESSAGES (participant views)
+########################################################################
+
+query ListMyDocuments @auth(level: USER) {
+  documents(
+    where: { participant: { userId: { eq_expr: "auth.uid" } } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    fileName
+    fileUrl
+    status
+    sizeBytes
+    createdAt
+  }
+}
+
+query ListMyMessages @auth(level: USER) {
+  messages(
+    where: { participant: { userId: { eq_expr: "auth.uid" } } }
+    orderBy: [{ createdAt: ASC }]
+  ) {
+    id
+    message
+    senderRole
+    read
+    createdAt
+    sender { id fullName }
+  }
+}
+
+query ListParticipantMessages($participantId: UUID!) @auth(level: USER) {
+  messages(
+    where: { participantId: { eq: $participantId } }
+    orderBy: [{ createdAt: ASC }]
+  ) {
+    id
+    message
+    senderRole
+    read
+    createdAt
+    sender { id fullName }
+  }
+}
+
+########################################################################
+# ADMIN DASHBOARD
+########################################################################
+
+query AdminOverview @auth(level: USER) {
+  totalParticipants: participants_aggregate {
+    _count
+  }
+  enrolled: participants(where: { status: { eq: "Enrolled" } }) {
+    id
+  }
+  stageNew: participants(where: { status: { eq: "New" } }) { id }
+  stageScreened: participants(where: { status: { eq: "Screened" } }) { id }
+  stageIntake: participants(where: { status: { eq: "Intake complete" } }) { id }
+  stageAdvising: participants(where: { status: { eq: "Advising" } }) { id }
+  stageEnrolled: participants(where: { status: { eq: "Enrolled" } }) { id }
+  stageInactive: participants(where: { status: { eq: "Inactive" } }) { id }
+  pathCollege: participants(where: { pathway: { eq: "College + FAFSA" } }) { id }
+  pathTraining: participants(where: { pathway: { eq: "Short-term training" } }) { id }
+  pathApprenticeship: participants(where: { pathway: { eq: "Apprenticeship" } }) { id }
+  pathGED: participants(where: { pathway: { eq: "GED / HSE" } }) { id }
+  sourceDirect: participants(where: { source: { eq: "Direct" } }) { id }
+  sourceReferral: participants(where: { source: { eq: "Referral" } }) { id }
+  sourcePartner: participants(where: { source: { eq: "Partner" } }) { id }
+  sourceEvent: participants(where: { source: { eq: "Event" } }) { id }
+  callsScheduled: appointments(where: { status: { eq: "scheduled" } }) { id }
+  recent: participants(orderBy: [{ submittedAt: DESC }], limit: 8) {
+    id
+    firstName
+    lastName
+    email
+    pathway
+    status
+    source
+    submittedAt
+    assignedAdvisor { id fullName }
+  }
+}

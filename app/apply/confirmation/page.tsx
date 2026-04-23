@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   FlowShell,
   FlowSidebar,
@@ -13,6 +16,7 @@ import {
   Mail,
   FileText,
 } from "@/components/icons";
+import { readApplyResult, type ApplyResult } from "@/lib/apply-session";
 
 const steps = [
   { label: "Eligibility" },
@@ -20,10 +24,21 @@ const steps = [
   { label: "Confirmation" },
 ];
 
-export const metadata = { title: "Application received" };
-
 export default function ApplyConfirmationPage() {
-  const refId = "CA-2026-04-1042";
+  const [result, setResult] = useState<ApplyResult | null>(null);
+
+  useEffect(() => {
+    setResult(readApplyResult());
+  }, []);
+
+  const refId =
+    result?.participantId ??
+    `CA-${new Date().getFullYear()}-${String(
+      new Date().getMonth() + 1
+    ).padStart(2, "0")}-${Math.floor(Math.random() * 9000 + 1000)}`;
+  const pathway = result?.pathway ?? "College + FAFSA";
+  const firstName = result?.firstName;
+
   return (
     <FlowShell
       steps={steps}
@@ -35,8 +50,16 @@ export default function ApplyConfirmationPage() {
             title="Reference"
             blurb="Save this for your records. We've also emailed it to you."
           >
-            <div className="rounded-md border border-line bg-canvas/60 p-3 font-mono text-[13px] tracking-tight">
+            <div className="rounded-md border border-line bg-canvas/60 p-3 font-mono text-[13px] tracking-tight break-all">
               {refId}
+            </div>
+          </FlowSidebar>
+          <FlowSidebar title="Your pathway">
+            <p className="text-[13px] text-ink-muted leading-6">
+              Based on your answers we&apos;ve recommended:
+            </p>
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-50 px-3 py-1 text-[13px] font-medium text-primary">
+              {pathway}
             </div>
           </FlowSidebar>
           <FlowSidebar title="Want to skip the wait?">
@@ -61,10 +84,12 @@ export default function ApplyConfirmationPage() {
           </Badge>
         </div>
         <h1 className="mt-5 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-[1.05]">
-          Thank You!
+          {firstName ? `Thank you, ${firstName}!` : "Thank You!"}
         </h1>
         <p className="mt-3 text-[16px] text-ink-muted leading-7 max-w-xl">
-          Your application has been submitted.
+          Your application has been submitted. We&apos;ve recommended the{" "}
+          <span className="font-medium text-ink">{pathway}</span> pathway
+          based on your answers.
         </p>
 
         <div className="mt-8">
@@ -86,7 +111,8 @@ export default function ApplyConfirmationPage() {
               {
                 icon: <Calendar size={16} />,
                 title: "Schedule a call",
-                copy: "You can schedule an advising call now if you haven't already.",
+                copy:
+                  "You can schedule an advising call now if you haven't already.",
               },
             ].map((s, i) => (
               <Card key={s.title} className="p-5">

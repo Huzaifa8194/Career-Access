@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Compass, Users, ChartBar } from "@/components/icons";
 import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
+import { useAuth } from "@/lib/firebase/auth";
 
 const demoRoles = [
   {
@@ -31,9 +33,62 @@ const demoRoles = [
   },
 ];
 
+function mapAuthError(code: string | null | undefined): string {
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "Email or password is incorrect.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again in a minute.";
+    case "auth/network-request-failed":
+      return "Network error — check your connection.";
+    default:
+      return "We couldn't sign you in. Please try again.";
+  }
+}
+
 export default function PortalSignInPage() {
+  const router = useRouter();
+  const { signIn, signingIn, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    try {
+      const user = await signIn(email, password);
+      const target =
+        user.role === "admin"
+          ? "/portal/admin"
+          : user.role === "advisor"
+          ? "/portal/advisor"
+          : "/portal/participant";
+      router.push(target);
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code;
+      setError(mapAuthError(code));
+    }
+  }
+
+  async function handleReset() {
+    if (!email) {
+      setError("Enter your email above, then tap Forgot password.");
+      return;
+    }
+    setError(null);
+    try {
+      await resetPassword(email);
+      setInfo("Password reset email sent. Check your inbox.");
+    } catch {
+      setError("Couldn't send reset email. Check the address and try again.");
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -51,7 +106,6 @@ export default function PortalSignInPage() {
 
       <main className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-5xl grid gap-8 lg:grid-cols-[1.1fr_1fr] items-stretch">
-          {/* Left: sign-in */}
           <div className="bg-white border border-line rounded-lg p-7 sm:p-9 shadow-[var(--shadow-card)]">
             <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-ink-subtle">
               <span className="h-1.5 w-1.5 rounded-full bg-action" />
@@ -64,13 +118,7 @@ export default function PortalSignInPage() {
               Use the email you applied with. Staff use their assigned account.
             </p>
 
-            <form
-              className="mt-7 grid gap-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                window.location.href = "/portal/participant";
-              }}
-            >
+            <form className="mt-7 grid gap-5" onSubmit={handleSubmit}>
               <Field label="Email address" required htmlFor="si-email">
                 <Input
                   id="si-email"
@@ -82,11 +130,7 @@ export default function PortalSignInPage() {
                   autoComplete="email"
                 />
               </Field>
-              <Field
-                label="Password"
-                required
-                htmlFor="si-pw"
-              >
+              <Field label="Password" required htmlFor="si-pw">
                 <Input
                   id="si-pw"
                   type="password"
@@ -105,15 +149,35 @@ export default function PortalSignInPage() {
                   />
                   Keep me signed in
                 </label>
-                <Link
-                  href="#"
+                <button
+                  type="button"
+                  onClick={handleReset}
                   className="text-[13px] font-medium text-primary hover:underline"
                 >
                   Forgot password?
-                </Link>
+                </button>
               </div>
-              <Button type="submit" size="lg" className="w-full">
-                Sign in <ArrowRight size={16} />
+              {error ? (
+                <p
+                  role="alert"
+                  className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
+                >
+                  {error}
+                </p>
+              ) : null}
+              {info ? (
+                <p className="rounded-md border border-action/20 bg-action-50 px-3 py-2 text-[13px] text-[#15803D]">
+                  {info}
+                </p>
+              ) : null}
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={signingIn}
+              >
+                {signingIn ? "Signing in…" : "Sign in"}{" "}
+                <ArrowRight size={16} />
               </Button>
             </form>
 
@@ -136,17 +200,16 @@ export default function PortalSignInPage() {
             </div>
           </div>
 
-          {/* Right: demo role panel */}
           <aside className="bg-white border border-line rounded-lg p-6 sm:p-7 shadow-[var(--shadow-card)] flex flex-col">
             <div className="inline-flex self-start items-center gap-2 rounded-full border border-warn/20 bg-warn-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-[#92400E]">
               Demo environment
             </div>
             <h2 className="mt-3 text-[18px] font-semibold tracking-tight">
-              Skip the sign-in
+              Preview any role
             </h2>
             <p className="mt-1 text-[13px] text-ink-muted leading-6">
-              In production, roles are determined by the signed-in account. For
-              this demo, jump directly into any role.
+              In production, access is based on your signed-in account. While
+              the backend is being set up you can preview each role.
             </p>
             <ul className="mt-5 grid gap-2 flex-1">
               {demoRoles.map((r) => (
@@ -176,7 +239,7 @@ export default function PortalSignInPage() {
               ))}
             </ul>
             <p className="mt-5 text-[12px] text-ink-subtle leading-5">
-              No data is saved — refresh resets the demo.
+              Live data appears once the Firebase backend is deployed.
             </p>
           </aside>
         </div>

@@ -1,0 +1,127 @@
+# Career Access Hub — Data Connect schema
+# PostgreSQL via Firebase Data Connect
+#
+# NOTE: User.id is the Firebase Auth uid. Setting it as the primary key keeps
+# auth.uid and the User row in lockstep and lets every @auth rule reference
+# it directly (e.g. `auth.uid == user.id`).
+
+type User @table(key: ["id"]) {
+  id: String!
+  fullName: String! @col(name: "full_name")
+  email: String!
+  role: String! # "participant" | "advisor" | "admin"
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type Participant @table {
+  # Linked user account (may be null until the applicant signs up with the
+  # same email used during intake).
+  user: User
+  firstName: String! @col(name: "first_name")
+  lastName: String! @col(name: "last_name")
+  email: String!
+  phone: String!
+  preferredContactMethod: String! @col(name: "preferred_contact_method")
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String! @col(name: "zip_code")
+  educationLevel: String! @col(name: "education_level")
+  currentlyEnrolled: Boolean! @col(name: "currently_enrolled")
+  programInterest: String! @col(name: "program_interest")
+  employed: Boolean!
+  jobTitle: String
+  # Multi-select support list stored as a comma-delimited string so we can keep
+  # a single relational column. The app layer serializes/deserializes.
+  supportNeeded: String @col(name: "support_needed")
+  pathway: String! # "College + FAFSA" | "Short-term training" | "Apprenticeship" | "GED / HSE"
+  status: String! # "New" | "Screened" | "Intake complete" | "Advising" | "Enrolled" | "Inactive"
+  source: String! # "Direct" | "Referral" | "Partner" | "Event"
+  submittedAt: Timestamp! @col(name: "submitted_at") @default(expr: "request.time")
+  lastActivityAt: Timestamp! @col(name: "last_activity_at") @default(expr: "request.time")
+  riskFlag: Boolean! @col(name: "risk_flag") @default(value: false)
+  consentAccuracy: Boolean! @col(name: "consent_accuracy")
+  consentContact: Boolean! @col(name: "consent_contact")
+  consentDataShare: Boolean! @col(name: "consent_data_share")
+  assignedAdvisor: User
+}
+
+type Application @table {
+  participant: Participant!
+  # Stored as JSON text — GraphQL scalars don't include JSON natively.
+  eligibilityData: String! @col(name: "eligibility_data")
+  intakeData: String! @col(name: "intake_data")
+  status: String! # "submitted" | "routed" | "enrolled" | "closed"
+  pathwayRecommendation: String @col(name: "pathway_recommendation")
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type Referral @table {
+  referrerName: String! @col(name: "referrer_name")
+  organizationName: String! @col(name: "organization_name")
+  email: String!
+  phone: String!
+  applicantFirstName: String! @col(name: "applicant_first_name")
+  applicantLastName: String! @col(name: "applicant_last_name")
+  applicantEmail: String! @col(name: "applicant_email")
+  applicantPhone: String! @col(name: "applicant_phone")
+  zipCode: String! @col(name: "zip_code")
+  programInterest: String! @col(name: "program_interest")
+  urgency: String!
+  reason: String!
+  permissionConfirmed: Boolean! @col(name: "permission_confirmed")
+  status: String! @default(value: "new")
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+  linkedParticipant: Participant
+}
+
+type Appointment @table {
+  participant: Participant
+  advisor: User
+  contactName: String! @col(name: "contact_name")
+  contactEmail: String! @col(name: "contact_email")
+  contactPhone: String @col(name: "contact_phone")
+  appointmentType: String! @col(name: "appointment_type")
+  scheduledAt: Timestamp! @col(name: "scheduled_at")
+  timezone: String!
+  status: String! # "scheduled" | "completed" | "cancelled" | "no-show"
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type Task @table {
+  participant: Participant!
+  title: String!
+  description: String
+  status: String! # "open" | "in-progress" | "done"
+  priority: String @default(value: "Med")
+  dueDate: Timestamp @col(name: "due_date")
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type Note @table {
+  participant: Participant!
+  advisor: User!
+  content: String!
+  kind: String @default(value: "note") # "note" | "phone" | "email" | "in-person" | "sms" | "no-show" | "system"
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type Document @table {
+  participant: Participant!
+  fileName: String! @col(name: "file_name")
+  fileUrl: String! @col(name: "file_url")
+  storagePath: String! @col(name: "storage_path")
+  sizeBytes: Int @col(name: "size_bytes")
+  status: String! @default(value: "in-review") # "needed" | "in-review" | "verified" | "rejected"
+  uploadedBy: User!
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type Message @table {
+  participant: Participant!
+  sender: User!
+  senderRole: String! @col(name: "sender_role")
+  message: String!
+  read: Boolean! @default(value: false)
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}

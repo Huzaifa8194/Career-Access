@@ -1,80 +1,228 @@
-CAREER ACCESS — Commands to run
-================================
+CAREER ACCESS HUB — Commands (Windows / PowerShell)
+====================================================
 
-Prerequisites
--------------
-Node.js 18.18+ (Node 20 LTS recommended) and npm already installed.
-Dependencies are listed in package.json (Next.js 16, React 19,
-Tailwind CSS v4, TypeScript). No new packages were added.
+This project is a Next.js 16 + React 19 + Tailwind v4 app wired to Firebase
+Authentication, Firebase Data Connect (Cloud SQL for PostgreSQL), and
+Firebase Storage.
+
+Everything below assumes you are running PowerShell from the project root
+(where package.json lives).
 
 
-First-time setup
-----------------
-1) Install dependencies (only needed once, or after a pull):
+────────────────────────────────────────────────────────────────────────────
+0) One-time prerequisites
+────────────────────────────────────────────────────────────────────────────
+
+a) Install Node.js 20 LTS from https://nodejs.org (Node 18.18+ works).
+
+b) Install the Firebase CLI globally:
+
+   npm install -g firebase-tools
+
+   (If npm warns about PATH, close and reopen the terminal.)
+
+c) Log in to Firebase and pick the right project:
+
+   firebase login
+   firebase use career-access-hub
+
+
+────────────────────────────────────────────────────────────────────────────
+1) Install project dependencies
+────────────────────────────────────────────────────────────────────────────
 
    npm install
 
+The local stub package for @dataconnect/generated lives in
+`dataconnect-generated/js/career-access-connector` and is linked via the
+root package.json using a `file:` dependency, so the app builds even before
+the real SDK is generated.
 
-Run the dev server
-------------------
-2) Start the local dev server (default: http://localhost:3000):
+
+────────────────────────────────────────────────────────────────────────────
+2) Enable backing services in the Firebase console
+────────────────────────────────────────────────────────────────────────────
+
+Open https://console.firebase.google.com/project/career-access-hub and
+enable the following (free/free-tier friendly for dev):
+
+  • Authentication → Email/Password provider
+  • Storage        → initialize the default bucket
+  • Data Connect   → enable the service and accept Cloud SQL provisioning
+                     (creates a PostgreSQL instance for you)
+
+Copy the web config (already embedded in lib/firebase/client.ts).
+
+
+────────────────────────────────────────────────────────────────────────────
+3) Generate the Data Connect SDK
+────────────────────────────────────────────────────────────────────────────
+
+The generated SDK replaces the local stub. Run:
+
+   firebase dataconnect:sdk:generate
+
+This writes JavaScript + TypeScript into
+`dataconnect-generated/js/career-access-connector`. Commit the output so CI
+and teammates pick it up.
+
+Re-run this command any time you edit files under `dataconnect/`.
+
+
+────────────────────────────────────────────────────────────────────────────
+4) (Recommended) Run everything locally with the emulators
+────────────────────────────────────────────────────────────────────────────
+
+Terminal 1 — start emulators (Auth, Data Connect, Storage, UI):
+
+   firebase emulators:start
+
+Emulator UI:        http://localhost:4000
+Auth:               http://localhost:9099
+Data Connect:       http://localhost:9399
+Storage:            http://localhost:9199
+
+Terminal 2 — start the Next.js dev server:
 
    npm run dev
 
+Open http://localhost:3000
 
-Routes to visit
----------------
+
+────────────────────────────────────────────────────────────────────────────
+5) Seed an admin / advisor user
+────────────────────────────────────────────────────────────────────────────
+
+Sign up at /portal/sign-up — this creates a Firebase Auth account with the
+`participant` role by default. To promote a user to admin or advisor:
+
+  firebase firestore:set "users/<uid>" "{ \"role\": \"admin\" }" --merge
+
+(If you are using Data Connect exclusively, update the `user` row via the
+Firebase console → Data Connect → Tables and set `role = 'admin'` or
+`role = 'advisor'`.)
+
+
+────────────────────────────────────────────────────────────────────────────
+6) Deploy to Firebase
+────────────────────────────────────────────────────────────────────────────
+
+Deploy Storage security rules:
+
+   firebase deploy --only storage
+
+Deploy the Data Connect schema + connector:
+
+   firebase deploy --only dataconnect
+
+Deploy everything in firebase.json:
+
+   firebase deploy
+
+
+────────────────────────────────────────────────────────────────────────────
+7) Everyday commands
+────────────────────────────────────────────────────────────────────────────
+
+   npm run dev             Start the Next.js dev server
+   npm run build           Production build (run after SDK generation)
+   npm run start           Run the production server locally
+   npm run lint            ESLint sweep
+
+   firebase emulators:start
+                            Start the Firebase emulator suite
+   firebase dataconnect:sdk:generate
+                            Regenerate the typed Data Connect SDK
+   firebase deploy --only dataconnect
+                            Push schema + connector changes
+   firebase deploy --only storage
+                            Push storage.rules
+
+
+────────────────────────────────────────────────────────────────────────────
+8) Routes
+────────────────────────────────────────────────────────────────────────────
+
 Public site:
-   /                     Home
-   /how-it-works         How it works
-   /services             Services
-   /partners             For partners
-   /get-started          Get started
-   /contact              Contact
+   /                        Home
+   /how-it-works            How it works
+   /services                Services
+   /partners                For partners
+   /get-started             Get started
+   /contact                 Contact
 
 Flows:
-   /apply                Eligibility screener  (Apply step 1)
-   /apply/intake         Full intake form      (Apply step 2)
-   /apply/confirmation   Application received  (Apply step 3)
-   /refer                Referral form
-   /refer/confirmation   Referral submitted
-   /book                 Book an advising call
-   /book/confirmation    Appointment confirmed
+   /apply                   Eligibility screener
+   /apply/intake            Full intake form
+   /apply/confirmation      Application received
+   /refer                   Referral form
+   /refer/confirmation      Referral submitted
+   /book                    Book an advising call
+   /book/confirmation       Appointment confirmed
 
-Portal (sign-in is UI-only — pick any role to enter):
-   /portal                              Sign in (with demo role panel)
-   /portal/sign-up                      Create account (UI only)
+Portal (Firebase Auth required):
+   /portal                              Sign in
+   /portal/sign-up                      Create account
    /portal/participant                  Participant dashboard
    /portal/participant/appointments     Appointments
    /portal/participant/documents        Documents
    /portal/participant/messages         Messages
    /portal/advisor                      Advisor pipeline (kanban)
    /portal/advisor/participants         All participants table
-   /portal/advisor/participants/p_1042  Example participant profile
+   /portal/advisor/participants/<id>    Participant profile
    /portal/advisor/inbox                Advisor inbox
-   /portal/admin                        Admin Dashboard Overview
-   /portal/admin/participants           Applicants by Status (table)
-   /portal/admin/participants/p_1042    Example applicant profile
+   /portal/admin                        Admin overview
+   /portal/admin/participants           Applicants by status
+   /portal/admin/participants/<id>      Applicant profile
    /portal/admin/partners               Partner referrals
-   /portal/admin/tasks                  Tasks & content management
+   /portal/admin/tasks                  Tasks & content
 
 
-Production build (when you're ready, optional)
-----------------------------------------------
-3) Build for production:
+────────────────────────────────────────────────────────────────────────────
+9) Where things live
+────────────────────────────────────────────────────────────────────────────
 
+  dataconnect/schema/schema.gql         Data Connect schema (Postgres/GraphQL)
+  dataconnect/connector/queries.gql     @auth-protected queries
+  dataconnect/connector/mutations.gql   @auth-protected mutations
+  dataconnect-generated/                Generated SDK (swap stub → real)
+  storage.rules                         Firebase Storage security rules
+  firebase.json                         Firebase project config
+
+  lib/firebase/client.ts                Firebase app + Auth + Storage init
+  lib/firebase/auth.tsx                 AuthProvider + role hook
+  lib/firebase/dataconnect.ts           callDC() wrapper with fallback
+  lib/firebase/storage.ts               uploadFile() helper
+  lib/pathway.ts                        Deterministic pathway routing
+  lib/services/*.ts                     Participants, applications,
+                                        referrals, appointments, documents,
+                                        messaging, admin
+  lib/apply-session.ts                  Session storage for apply flow
+
+  components/providers/Providers.tsx    AuthProvider + TanStack Query
+  components/portal/RequireAuth.tsx     Route guard (role-aware)
+
+
+────────────────────────────────────────────────────────────────────────────
+10) Recovery — if something goes wrong
+────────────────────────────────────────────────────────────────────────────
+
+Reinstall node_modules:
+
+   rmdir /s /q node_modules
+   del package-lock.json
+   npm install
+
+Reset the generated SDK to the stub (before first dataconnect deploy):
+
+   git checkout -- dataconnect-generated
+
+Reset emulator data:
+
+   firebase emulators:start --import=./emulator-data --export-on-exit
+   (or simply stop the emulators and delete any exported folder)
+
+Force a clean Next.js build:
+
+   rmdir /s /q .next
    npm run build
-
-4) Start the production server:
-
-   npm run start
-
-
-Notes
------
-- No backend is wired up. Forms route between steps using the Next.js
-  router; submitted state is local-only (no data is persisted).
-- Mock data lives in lib/data.ts. Edit it to change participants,
-  pipeline content, admin metrics, and the participant dashboard.
-- Design tokens (colors, typography, shadows) live in app/globals.css
-  under the @theme block.

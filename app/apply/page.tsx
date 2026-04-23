@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input, Select, Radio } from "@/components/ui/Field";
 import { Check, ArrowRight, Shield } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
+import { saveEligibility } from "@/lib/apply-session";
 
 const steps = [
   { label: "Eligibility" },
@@ -21,7 +22,11 @@ const steps = [
 
 export default function ApplyEligibilityPage() {
   const router = useRouter();
+  const [ageRange, setAgeRange] = useState("");
+  const [zip, setZip] = useState("");
+  const [education, setEducation] = useState("");
   const [interest, setInterest] = useState("");
+  const [income, setIncome] = useState("");
   const [firstGen, setFirstGen] = useState("");
 
   return (
@@ -59,13 +64,26 @@ export default function ApplyEligibilityPage() {
         className="grid gap-5"
         onSubmit={(e) => {
           e.preventDefault();
+          saveEligibility({
+            ageRange,
+            zip,
+            highestEducation: education,
+            interest,
+            incomeRange: income,
+            firstGen,
+          });
           router.push("/apply/intake");
         }}
       >
         <FormSection title="About you">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="How old are you?" required htmlFor="el-age">
-              <Select id="el-age" required defaultValue="">
+              <Select
+                id="el-age"
+                required
+                value={ageRange}
+                onChange={(e) => setAgeRange(e.target.value)}
+              >
                 <option value="" disabled>
                   Select age range
                 </option>
@@ -83,6 +101,8 @@ export default function ApplyEligibilityPage() {
                 inputMode="numeric"
                 maxLength={5}
                 placeholder="07505"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
               />
             </Field>
           </div>
@@ -91,7 +111,12 @@ export default function ApplyEligibilityPage() {
             required
             htmlFor="el-edu"
           >
-            <Select id="el-edu" required defaultValue="">
+            <Select
+              id="el-edu"
+              required
+              value={education}
+              onChange={(e) => setEducation(e.target.value)}
+            >
               <option value="" disabled>
                 Select an option
               </option>
@@ -138,7 +163,12 @@ export default function ApplyEligibilityPage() {
             htmlFor="el-income"
             required
           >
-            <Select id="el-income" required defaultValue="">
+            <Select
+              id="el-income"
+              required
+              value={income}
+              onChange={(e) => setIncome(e.target.value)}
+            >
               <option value="" disabled>
                 Select range
               </option>

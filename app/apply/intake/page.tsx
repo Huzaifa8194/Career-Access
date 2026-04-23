@@ -19,6 +19,13 @@ import {
   Checkbox,
 } from "@/components/ui/Field";
 import { Upload, ArrowRight } from "@/components/icons";
+import {
+  readEligibility,
+  saveApplyResult,
+} from "@/lib/apply-session";
+import { submitIntake } from "@/lib/services/participants";
+import { uploadParticipantDocument } from "@/lib/services/documents";
+import { recommendPathway } from "@/lib/pathway";
 
 const steps = [
   { label: "Eligibility" },
@@ -39,17 +46,112 @@ const supportOptions = [
 
 export default function IntakePage() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [stateVal, setStateVal] = useState("NJ");
+  const [zip, setZip] = useState("");
+  const [education, setEducation] = useState("");
   const [enrolled, setEnrolled] = useState("");
   const [employed, setEmployed] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
   const [interest, setInterest] = useState("");
   const [supports, setSupports] = useState<string[]>([]);
   const [contact, setContact] = useState("Email");
   const [file, setFile] = useState<File | null>(null);
+  const [consentAccuracy, setConsentAccuracy] = useState(false);
+  const [consentContact, setConsentContact] = useState(false);
+  const [consentDataShare, setConsentDataShare] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function toggleSupport(name: string) {
     setSupports((prev) =>
       prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
     );
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!consentAccuracy || !consentContact) {
+      setError("Please confirm both required consents to continue.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const eligibility = readEligibility() ?? {};
+      const intakeAnswers = {
+        highestEducation: education,
+        currentlyEnrolled: enrolled,
+        interest,
+        employed,
+        jobTitle,
+        supportNeeded: supports,
+        notes,
+      };
+      const pathway = recommendPathway(eligibility, intakeAnswers);
+
+      const { participantId, live } = await submitIntake({
+        firstName,
+        lastName,
+        email,
+        phone,
+        preferredContactMethod: contact,
+        address,
+        city,
+        state: stateVal,
+        zipCode: zip,
+        educationLevel: education,
+        currentlyEnrolled: enrolled === "Yes",
+        programInterest: interest,
+        employed: employed === "Yes",
+        jobTitle: employed === "Yes" ? jobTitle : undefined,
+        supportNeeded: supports,
+        pathway,
+        source: "Direct",
+        consentAccuracy,
+        consentContact,
+        consentDataShare,
+        eligibilityAnswers: eligibility,
+        intakeAnswers,
+      });
+
+      if (live && participantId && file) {
+        try {
+          await uploadParticipantDocument({
+            file,
+            participantId,
+            status: "in-review",
+          });
+        } catch (uploadError) {
+          console.warn("Document upload failed:", uploadError);
+        }
+      }
+
+      saveApplyResult({
+        participantId,
+        applicationId: null,
+        pathway,
+        firstName,
+        email,
+        bookLink: "/book",
+        live,
+        submittedAt: new Date().toISOString(),
+      });
+      router.push("/apply/confirmation");
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Something went wrong submitting your application. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -63,8 +165,11 @@ export default function IntakePage() {
             blurb="Most participants finish in 5–7 minutes."
           >
             <ul className="grid gap-2 text-[13px] text-ink-muted">
-              <li>You can leave fields blank if you're not sure.</li>
-              <li>Documents are optional — your advisor will request what's needed.</li>
+              <li>You can leave fields blank if you&apos;re not sure.</li>
+              <li>
+                Documents are optional — your advisor will request what&apos;s
+                needed.
+              </li>
               <li>Your answers save as you type.</li>
             </ul>
           </FlowSidebar>
@@ -87,28 +192,46 @@ export default function IntakePage() {
         subtitle="Provide your information so we can support you."
       />
 
-      <form
-        className="grid gap-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          router.push("/apply/confirmation");
-        }}
-      >
+      <form className="grid gap-5" onSubmit={handleSubmit}>
         <FormSection title="Personal Information">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="First Name" required htmlFor="fn">
-              <Input id="fn" required />
+              <Input
+                id="fn"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
             </Field>
             <Field label="Last Name" required htmlFor="ln">
-              <Input id="ln" required />
+              <Input
+                id="ln"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
             </Field>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Email Address" required htmlFor="em">
-              <Input id="em" type="email" required placeholder="you@example.com" />
+              <Input
+                id="em"
+                type="email"
+                required
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </Field>
             <Field label="Mobile Phone" required htmlFor="ph">
-              <Input id="ph" type="tel" required placeholder="(201) 555-0123" />
+              <Input
+                id="ph"
+                type="tel"
+                required
+                placeholder="(201) 555-0123"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
             </Field>
           </div>
           <Field label="Preferred Contact Method" required>
@@ -127,14 +250,27 @@ export default function IntakePage() {
             </div>
           </Field>
           <Field label="Street Address" htmlFor="addr">
-            <Input id="addr" placeholder="123 Main St" />
+            <Input
+              id="addr"
+              placeholder="123 Main St"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
           </Field>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="City" htmlFor="city">
-              <Input id="city" />
+              <Input
+                id="city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
             </Field>
             <Field label="State" htmlFor="state">
-              <Select id="state" defaultValue="NJ">
+              <Select
+                id="state"
+                value={stateVal}
+                onChange={(e) => setStateVal(e.target.value)}
+              >
                 <option>NJ</option>
                 <option>NY</option>
                 <option>PA</option>
@@ -143,7 +279,14 @@ export default function IntakePage() {
               </Select>
             </Field>
             <Field label="ZIP Code" htmlFor="zip" required>
-              <Input id="zip" required inputMode="numeric" maxLength={5} />
+              <Input
+                id="zip"
+                required
+                inputMode="numeric"
+                maxLength={5}
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+              />
             </Field>
           </div>
         </FormSection>
@@ -155,7 +298,12 @@ export default function IntakePage() {
               required
               htmlFor="edu"
             >
-              <Select id="edu" required defaultValue="">
+              <Select
+                id="edu"
+                required
+                value={education}
+                onChange={(e) => setEducation(e.target.value)}
+              >
                 <option value="" disabled>
                   Select one
                 </option>
@@ -225,7 +373,12 @@ export default function IntakePage() {
           </Field>
           {employed === "Yes" && (
             <Field label="Job Title (if applicable)" htmlFor="jt">
-              <Input id="jt" placeholder="e.g. Retail associate" />
+              <Input
+                id="jt"
+                placeholder="e.g. Retail associate"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+              />
             </Field>
           )}
         </FormSection>
@@ -252,6 +405,8 @@ export default function IntakePage() {
               id="notes"
               rows={3}
               placeholder="Constraints, deadlines, preferences…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </Field>
         </FormSection>
@@ -275,11 +430,12 @@ export default function IntakePage() {
               </div>
             </div>
             <span className="text-[13px] font-medium text-primary">
-              Upload Files
+              {file ? "Replace" : "Upload Files"}
             </span>
             <input
               type="file"
               className="sr-only"
+              accept="application/pdf,image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </label>
@@ -288,17 +444,32 @@ export default function IntakePage() {
         <FormSection title="Consent">
           <Checkbox
             required
+            checked={consentAccuracy}
+            onChange={(e) => setConsentAccuracy(e.target.checked)}
             label="I confirm the information provided is accurate."
           />
           <Checkbox
             required
+            checked={consentContact}
+            onChange={(e) => setConsentContact(e.target.checked)}
             label="I consent to be contacted by program staff."
           />
           <Checkbox
+            checked={consentDataShare}
+            onChange={(e) => setConsentDataShare(e.target.checked)}
             label="I agree to allow my information to be shared with partner organizations for support services."
             description="Optional — you can update this anytime in your portal."
           />
         </FormSection>
+
+        {error ? (
+          <p
+            role="alert"
+            className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
+          >
+            {error}
+          </p>
+        ) : null}
 
         <div className="flex items-center justify-between gap-3 pt-2">
           <Link
@@ -307,8 +478,9 @@ export default function IntakePage() {
           >
             Back
           </Link>
-          <Button type="submit" size="lg">
-            Submit Application <ArrowRight size={16} />
+          <Button type="submit" size="lg" disabled={submitting}>
+            {submitting ? "Submitting…" : "Submit Application"}{" "}
+            <ArrowRight size={16} />
           </Button>
         </div>
       </form>

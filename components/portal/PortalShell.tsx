@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import {
@@ -20,6 +20,8 @@ import {
   ChevronDown,
   Compass,
 } from "@/components/icons";
+import { useOptionalAuth } from "@/lib/firebase/auth";
+import { isDataConnectReady } from "@/lib/firebase/dataconnect";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
 
@@ -120,9 +122,43 @@ export function PortalShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useOptionalAuth();
   const nav = roleNav[role];
-  const user = userByRole[role];
+  const fallback = userByRole[role];
+  const initialsOf = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase() ?? "")
+      .join("") || fallback.initials;
+  const user = auth?.user
+    ? {
+        name: auth.user.fullName || fallback.name,
+        meta:
+          auth.user.role === role
+            ? `${role.charAt(0).toUpperCase() + role.slice(1)} · ${auth.user.email}`
+            : fallback.meta,
+        initials: initialsOf(auth.user.fullName || fallback.name),
+      }
+    : fallback;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    if (!auth) {
+      router.push("/");
+      return;
+    }
+    try {
+      setSigningOut(true);
+      await auth.signOut();
+      router.push("/portal");
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -206,15 +242,17 @@ export function PortalShell({
                 </button>
               </li>
               <li>
-                <Link
-                  href="/"
-                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] text-ink-muted hover:bg-canvas hover:text-ink"
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-60"
                 >
                   <span className="text-ink-subtle">
                     <LogOut size={16} />
                   </span>
-                  Sign out
-                </Link>
+                  {signingOut ? "Signing out…" : "Sign out"}
+                </button>
               </li>
             </ul>
           </nav>
@@ -287,8 +325,12 @@ export function PortalShell({
                   <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-warn" />
                 </button>
                 <span className="hidden sm:inline-flex h-9 items-center gap-2 rounded-md border border-line px-2.5 text-[13px] text-ink-muted">
-                  <span className="h-1.5 w-1.5 rounded-full bg-action" />
-                  Live
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isDataConnectReady ? "bg-action" : "bg-warn"
+                    }`}
+                  />
+                  {isDataConnectReady ? "Live" : "Demo data"}
                 </span>
               </div>
             </div>

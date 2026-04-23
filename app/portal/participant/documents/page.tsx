@@ -1,44 +1,169 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Upload, FileText, Check } from "@/components/icons";
 import { participantSummary } from "@/lib/data";
+import {
+  fetchMyDocuments,
+  uploadParticipantDocument,
+  type DocumentRow,
+} from "@/lib/services/documents";
+import { fetchMyParticipant } from "@/lib/services/participants";
+
+type LocalDoc = {
+  id: string;
+  name: string;
+  uploaded: string;
+  size: string;
+  status: "Verified" | "Needed" | "In review";
+};
+
+function formatSize(bytes?: number | null) {
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function normalizeStatus(status: string): LocalDoc["status"] {
+  const s = status.toLowerCase();
+  if (s.includes("verified")) return "Verified";
+  if (s.includes("need")) return "Needed";
+  return "In review";
+}
 
 export default function DocumentsPage() {
-  const [docs, setDocs] = useState(participantSummary.documents);
+  return (
+    <RequireAuth requiredRole="participant">
+      <Inner />
+    </RequireAuth>
+  );
+}
 
-  function onFile(name: string, file: File | null) {
+function Inner() {
+  const [docs, setDocs] = useState<LocalDoc[]>([]);
+  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [participant, { rows, live: docsLive }] = await Promise.all([
+        fetchMyParticipant(),
+        fetchMyDocuments(),
+      ]);
+      if (cancelled) return;
+      setParticipantId(participant?.id ?? null);
+      setLive(docsLive);
+      if (docsLive && rows.length > 0) {
+        setDocs(
+          rows.map((r: DocumentRow) => ({
+            id: r.id,
+            name: r.fileName,
+            uploaded: r.createdAt
+              ? new Date(r.createdAt).toLocaleDateString()
+              : "—",
+            size: formatSize(r.sizeBytes ?? undefined),
+            status: normalizeStatus(r.status ?? ""),
+          }))
+        );
+      } else {
+        setDocs(
+          participantSummary.documents.map((d, i) => ({
+            id: `demo_${i}`,
+            name: d.name,
+            uploaded: d.uploaded,
+            size: d.size,
+            status: normalizeStatus(d.status ?? ""),
+          }))
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleAdd(file: File | null, replaceId?: string) {
     if (!file) return;
-    setDocs((d) =>
-      d.map((doc) =>
-        doc.name === name
-          ? {
-              ...doc,
-              uploaded: "Just now",
-              size: `${Math.round(file.size / 1024)} KB`,
-              status: "In review",
-            }
-          : doc
-      )
-    );
+    setError(null);
+    if (!participantId) {
+      setError(
+        "We couldn't find your application. Please complete intake first."
+      );
+      return;
+    }
+    setUploading(true);
+    try {
+      const { id, stored } = await uploadParticipantDocument({
+        file,
+        participantId,
+        status: "in-review",
+      });
+      const entry: LocalDoc = {
+        id: id ?? `local_${Date.now()}`,
+        name: stored.fileName,
+        uploaded: "Just now",
+        size: formatSize(stored.sizeBytes),
+        status: "In review",
+      };
+      setDocs((prev) => {
+        if (replaceId) {
+          return prev.map((d) => (d.id === replaceId ? entry : d));
+        }
+        return [entry, ...prev];
+      });
+    } catch (err) {
+      console.error(err);
+      setError("Upload failed. Check the file size and type, then try again.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
     <PortalShell
       role="participant"
       title="Documents"
-      subtitle="Upload only what your advisor requests. We'll verify and follow up."
+      subtitle={
+        live
+          ? "Upload only what your advisor requests. We'll verify and follow up."
+          : "Upload only what your advisor requests. Showing sample documents until your account is live."
+      }
       actions={
-        <Button variant="primary" size="sm">
+        <label
+          className={[
+            "inline-flex items-center justify-center gap-2 h-9 px-3 text-sm rounded-md font-medium cursor-pointer",
+            "bg-primary text-white hover:bg-primary-700",
+            uploading ? "opacity-60 pointer-events-none" : "",
+          ].join(" ")}
+        >
           <Upload size={14} />
-          Add a document
-        </Button>
+          {uploading ? "Uploading…" : "Add a document"}
+          <input
+            type="file"
+            className="sr-only"
+            accept="application/pdf,image/*"
+            onChange={(e) => handleAdd(e.target.files?.[0] ?? null)}
+          />
+        </label>
       }
     >
+      {error ? (
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
+        >
+          {error}
+        </p>
+      ) : null}
+
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card>
           <CardHeader
@@ -53,7 +178,7 @@ export default function DocumentsPage() {
           <CardBody className="grid gap-2">
             {docs.map((d) => (
               <div
-                key={d.name}
+                key={d.id}
                 className="flex items-center justify-between gap-3 border border-line rounded-md p-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -75,10 +200,8 @@ export default function DocumentsPage() {
                       d.status === "Verified"
                         ? "success"
                         : d.status === "Needed"
-                          ? "warn"
-                          : d.status === "In review"
-                            ? "info"
-                            : "muted"
+                        ? "warn"
+                        : "info"
                     }
                     dot
                   >
@@ -90,8 +213,9 @@ export default function DocumentsPage() {
                       <input
                         type="file"
                         className="sr-only"
+                        accept="application/pdf,image/*"
                         onChange={(e) =>
-                          onFile(d.name, e.target.files?.[0] ?? null)
+                          handleAdd(e.target.files?.[0] ?? null, d.id)
                         }
                       />
                     </label>
@@ -109,7 +233,7 @@ export default function DocumentsPage() {
           />
           <CardBody className="grid gap-3 text-[14px] text-ink-muted leading-6">
             <p>
-              We never request more than what's needed for your specific
+              We never request more than what&apos;s needed for your specific
               pathway. Common asks:
             </p>
             <ul className="grid gap-2.5">
@@ -119,10 +243,7 @@ export default function DocumentsPage() {
                 "Tax forms (FAFSA only)",
                 "Résumé (apprenticeship and employer programs)",
               ].map((s) => (
-                <li
-                  key={s}
-                  className="flex items-start gap-2.5 text-ink"
-                >
+                <li key={s} className="flex items-start gap-2.5 text-ink">
                   <span className="mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-action-50 text-action">
                     <Check size={11} />
                   </span>

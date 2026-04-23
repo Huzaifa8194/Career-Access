@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardBody, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +17,19 @@ import {
   Plus,
   Sparkle,
 } from "@/components/icons";
-import { type Participant, advisors } from "@/lib/data";
+import {
+  type Participant,
+  type ParticipantStatus,
+  type Pathway,
+} from "@/lib/data";
+import {
+  mutateAssignAdvisor,
+  mutatePathway,
+  mutateRiskFlag,
+  mutateStatus,
+} from "@/lib/services/participants";
+import { createCaseNote } from "@/lib/services/messaging";
+import { fetchAdvisors, type AdvisorOption } from "@/lib/services/admin";
 
 const statusTone = {
   New: "info",
@@ -39,15 +51,66 @@ export function ParticipantProfile({
   role: "advisor" | "admin";
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
-  const [status, setStatus] = useState(participant.status);
-  const [advisor, setAdvisor] = useState(
-    participant.assignedAdvisor ?? "— Unassigned —"
+  const [status, setStatus] = useState<ParticipantStatus>(participant.status);
+  const [pathway, setPathway] = useState<Pathway>(participant.pathway);
+  const [advisorOptions, setAdvisorOptions] = useState<AdvisorOption[]>([]);
+  const [advisorId, setAdvisorId] = useState<string>("");
+  const [advisorName, setAdvisorName] = useState<string>(
+    participant.assignedAdvisor ?? ""
   );
+  const [risk, setRisk] = useState<Participant["risk"]>(participant.risk ?? "ok");
+  const [saving, setSaving] = useState(false);
+  const [saveInfo, setSaveInfo] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (role !== "admin") return;
+    let cancelled = false;
+    (async () => {
+      const list = await fetchAdvisors();
+      if (!cancelled) {
+        setAdvisorOptions(list);
+        const current = list.find((a) => a.fullName === participant.assignedAdvisor);
+        if (current) setAdvisorId(current.id);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role, participant.assignedAdvisor]);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveInfo(null);
+    setSaveError(null);
+    try {
+      const ops: Promise<unknown>[] = [];
+      if (status !== participant.status) ops.push(mutateStatus(participant.id, status));
+      if (pathway !== participant.pathway) ops.push(mutatePathway(participant.id, pathway));
+      if (role === "admin" && advisorId) ops.push(mutateAssignAdvisor(participant.id, advisorId));
+      await Promise.all(ops);
+      setSaveInfo("Saved.");
+    } catch (err) {
+      console.error(err);
+      setSaveError("Couldn't save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleRisk() {
+    const next = !risk || risk === "ok" ? "stalled" : "ok";
+    setRisk(next);
+    try {
+      await mutateRiskFlag(participant.id, next !== "ok");
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr] items-start">
       <div className="grid gap-5 min-w-0">
-        {/* Identity card */}
         <Card>
           <div className="p-5 sm:p-6 flex items-start gap-5 flex-wrap">
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white text-[18px] font-semibold">
@@ -62,14 +125,15 @@ export function ParticipantProfile({
                 <Badge tone={statusTone[status]} dot>
                   {status}
                 </Badge>
-                {participant.risk && participant.risk !== "ok" && (
+                {risk && risk !== "ok" && (
                   <Badge tone="warn" dot>
-                    {participant.risk === "inactive" ? "Inactive" : "Stalled"}
+                    {risk === "inactive" ? "Inactive" : "Stalled"}
                   </Badge>
                 )}
               </div>
               <div className="mt-1 text-[13px] text-ink-subtle">
-                Applied {participant.appliedAt} · ID {participant.id} · Source {participant.source}
+                Applied {participant.appliedAt} · ID {participant.id} · Source{" "}
+                {participant.source}
               </div>
               <div className="mt-4 grid gap-2.5 sm:grid-cols-3 text-[13px]">
                 <ContactRow icon={<Mail size={14} />} value={participant.email} />
@@ -100,12 +164,13 @@ export function ParticipantProfile({
         </Card>
 
         {tab === "Overview" && <OverviewTab p={participant} />}
-        {tab === "Notes & history" && <NotesTab />}
+        {tab === "Notes & history" && (
+          <NotesTab participantId={participant.id} role={role} />
+        )}
         {tab === "Documents" && <DocumentsTab />}
         {tab === "Milestones" && <MilestonesTab p={participant} />}
       </div>
 
-      {/* Right rail: actions */}
       <div className="grid gap-4">
         <Card>
           <CardHeader title="Case actions" description="Update routing and assignment" />
@@ -116,7 +181,7 @@ export function ParticipantProfile({
               </label>
               <Select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as typeof status)}
+                onChange={(e) => setStatus(e.target.value as ParticipantStatus)}
               >
                 {(
                   [
@@ -137,60 +202,79 @@ export function ParticipantProfile({
                 <label className="text-[12px] uppercase tracking-wider text-ink-subtle">
                   Assigned advisor
                 </label>
-                <Select value={advisor} onChange={(e) => setAdvisor(e.target.value)}>
-                  <option>— Unassigned —</option>
-                  {advisors.map((a) => (
-                    <option key={a}>{a}</option>
+                <Select
+                  value={advisorId}
+                  onChange={(e) => {
+                    setAdvisorId(e.target.value);
+                    setAdvisorName(
+                      advisorOptions.find((a) => a.id === e.target.value)?.fullName ?? ""
+                    );
+                  }}
+                >
+                  <option value="">— Unassigned —</option>
+                  {advisorOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.fullName}
+                    </option>
                   ))}
                 </Select>
+                {advisorName && !advisorId ? (
+                  <p className="text-[11px] text-ink-subtle">
+                    Currently shown: {advisorName}
+                  </p>
+                ) : null}
               </div>
             )}
             <div className="grid gap-1.5">
               <label className="text-[12px] uppercase tracking-wider text-ink-subtle">
                 Pathway
               </label>
-              <Select defaultValue={participant.pathway}>
+              <Select
+                value={pathway}
+                onChange={(e) => setPathway(e.target.value as Pathway)}
+              >
                 <option>College + FAFSA</option>
                 <option>Short-term training</option>
                 <option>Apprenticeship</option>
                 <option>GED / HSE</option>
               </Select>
             </div>
-            <Button variant="primary" className="w-full">
-              Save changes
+            <Button
+              variant="primary"
+              className="w-full"
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? "Saving…" : "Save changes"}
             </Button>
+            {saveInfo ? (
+              <p className="text-[12px] text-action-700">{saveInfo}</p>
+            ) : null}
+            {saveError ? (
+              <p className="text-[12px] text-danger">{saveError}</p>
+            ) : null}
           </CardBody>
           <CardFooter className="flex items-center justify-between">
             <span className="text-[12px] text-ink-subtle">
-              Last update: 2 days ago
+              Last update: {participant.lastActivity}
             </span>
-            <button className="text-[12px] font-medium text-danger inline-flex items-center gap-1">
-              <Flag size={12} /> Flag at risk
+            <button
+              type="button"
+              onClick={toggleRisk}
+              className="text-[12px] font-medium text-danger inline-flex items-center gap-1"
+            >
+              <Flag size={12} />{" "}
+              {risk && risk !== "ok" ? "Clear flag" : "Flag at risk"}
             </button>
           </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader title="Quick log" description="Capture a follow-up" />
-          <CardBody className="grid gap-3">
-            <Select defaultValue="Phone call">
-              <option>Phone call</option>
-              <option>Email sent</option>
-              <option>In-person session</option>
-              <option>SMS</option>
-              <option>No-show</option>
-            </Select>
-            <Textarea rows={3} placeholder="Brief note about the interaction…" />
-            <Button variant="secondary" className="w-full">
-              <Plus size={14} /> Add to log
-            </Button>
-          </CardBody>
-        </Card>
+        <QuickLog participantId={participant.id} role={role} />
 
         <Card>
           <CardHeader title="At-a-glance" />
           <CardBody className="grid gap-3 text-[13px]">
-            <Glance label="Pathway" value={participant.pathway} />
+            <Glance label="Pathway" value={pathway} />
             <Glance label="Education" value={participant.educationLevel ?? "—"} />
             <Glance
               label="Support needed"
@@ -205,6 +289,74 @@ export function ParticipantProfile({
         </Card>
       </div>
     </div>
+  );
+}
+
+function QuickLog({
+  participantId,
+  role,
+}: {
+  participantId: string;
+  role: "advisor" | "admin";
+}) {
+  const [kind, setKind] = useState("Phone call");
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function handleAdd() {
+    if (!body.trim()) return;
+    setSaving(true);
+    setStatus(null);
+    try {
+      await createCaseNote({
+        participantId,
+        content: body.trim(),
+        kind,
+      });
+      setBody("");
+      setStatus("Added to log.");
+    } catch (err) {
+      console.error(err);
+      setStatus("Couldn't save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Quick log"
+        description={role === "admin" ? "Capture a follow-up or admin note" : "Capture a follow-up"}
+      />
+      <CardBody className="grid gap-3">
+        <Select value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option>Phone call</option>
+          <option>Email sent</option>
+          <option>In-person session</option>
+          <option>SMS</option>
+          <option>No-show</option>
+        </Select>
+        <Textarea
+          rows={3}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Brief note about the interaction…"
+        />
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={handleAdd}
+          disabled={saving || !body.trim()}
+        >
+          <Plus size={14} /> {saving ? "Adding…" : "Add to log"}
+        </Button>
+        {status ? (
+          <p className="text-[12px] text-ink-subtle">{status}</p>
+        ) : null}
+      </CardBody>
+    </Card>
   );
 }
 
@@ -285,10 +437,7 @@ function OverviewTab({ p }: { p: Participant }) {
               key={step}
               className="flex items-center gap-3 rounded-md border border-line p-3 hover:bg-canvas cursor-pointer"
             >
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-primary"
-              />
+              <input type="checkbox" className="h-4 w-4 accent-primary" />
               <span className="text-[14px]">{step}</span>
               <span className="ml-auto text-[12px] text-ink-subtle inline-flex items-center gap-1">
                 <Sparkle size={12} /> Add to plan
@@ -301,13 +450,20 @@ function OverviewTab({ p }: { p: Participant }) {
   );
 }
 
-function NotesTab() {
+function NotesTab({
+  participantId,
+  role,
+}: {
+  participantId: string;
+  role: "advisor" | "admin";
+}) {
   const log = [
     {
       who: "Maya Robinson",
       type: "Phone call · 12 min",
       when: "Apr 14 · 2:30 PM",
-      body: "Walked through FAFSA basics. Sent video link for Tuesday session. Confirmed contact prefers email.",
+      body:
+        "Walked through FAFSA basics. Sent video link for Tuesday session. Confirmed contact prefers email.",
     },
     {
       who: "System",
@@ -328,21 +484,22 @@ function NotesTab() {
         title="Notes & history"
         description="Every interaction is logged here"
         action={
-          <button className="text-[13px] font-medium text-primary inline-flex items-center gap-1">
-            <Plus size={12} /> New note
-          </button>
+          <span className="text-[11px] uppercase tracking-wider text-ink-subtle">
+            {role === "admin" ? "Admin + advisor visible" : "Visible to you"}
+          </span>
         }
       />
       <CardBody>
+        <p className="text-[12px] text-ink-subtle mb-3">
+          Reference ID: {participantId}
+        </p>
         <ol className="relative pl-6">
           <span className="absolute left-2 top-1 bottom-1 w-px bg-line" />
           {log.map((l, i) => (
             <li key={i} className="relative pb-6 last:pb-0">
               <span className="absolute -left-0.5 top-1 inline-flex h-3.5 w-3.5 rounded-full bg-white border border-primary ring-2 ring-primary/15" />
               <div className="flex items-center gap-2">
-                <span className="text-[13px] font-medium text-ink">
-                  {l.who}
-                </span>
+                <span className="text-[13px] font-medium text-ink">{l.who}</span>
                 <span className="text-[12px] text-ink-subtle">· {l.type}</span>
                 <span className="ml-auto text-[12px] text-ink-subtle inline-flex items-center gap-1">
                   <Clock size={11} /> {l.when}
@@ -441,16 +598,18 @@ function MilestonesTab({ p }: { p: Participant }) {
                     : "bg-white border-line text-ink-subtle",
                 ].join(" ")}
               >
-                {m.done ? <Check size={13} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                {m.done ? (
+                  <Check size={13} />
+                ) : (
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                )}
               </span>
               <span
                 className={`text-[14px] ${m.done ? "text-ink" : "text-ink-muted"}`}
               >
                 {m.label}
               </span>
-              <span className="ml-auto text-[12px] text-ink-subtle">
-                {m.date}
-              </span>
+              <span className="ml-auto text-[12px] text-ink-subtle">{m.date}</span>
             </li>
           ))}
         </ul>

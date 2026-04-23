@@ -1,12 +1,18 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { PortalShell, StatCard } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
-import { participants, pipelineStages } from "@/lib/data";
+import { pipelineStages } from "@/lib/data";
 import { AlertTriangle, ArrowRight, Plus } from "@/components/icons";
-
-export const metadata = { title: "Advisor pipeline" };
+import {
+  fetchAllParticipants,
+  type PortalParticipant,
+} from "@/lib/services/participants";
 
 const stageTone: Record<string, "info" | "warn" | "primary" | "success" | "muted"> = {
   New: "info",
@@ -17,16 +23,35 @@ const stageTone: Record<string, "info" | "warn" | "primary" | "success" | "muted
 };
 
 export default function AdvisorPipeline() {
-  const myCases = participants.filter(
-    (p) => p.assignedAdvisor === "Maya Robinson" || !p.assignedAdvisor
+  return (
+    <RequireAuth requiredRole="advisor">
+      <AdvisorPipelineInner />
+    </RequireAuth>
   );
+}
+
+function AdvisorPipelineInner() {
+  const [participants, setParticipants] = useState<PortalParticipant[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const rows = await fetchAllParticipants();
+      if (!cancelled) setParticipants(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const active = participants.filter((p) => p.status !== "Inactive");
   const stalled = participants.filter((p) => p.risk && p.risk !== "ok");
 
   return (
     <PortalShell
       role="advisor"
       title="Your pipeline"
-      subtitle="Cases assigned to Maya Robinson · 18 active"
+      subtitle={`${active.length} active ${active.length === 1 ? "case" : "cases"}`}
       actions={
         <>
           <LinkButton
@@ -45,20 +70,23 @@ export default function AdvisorPipeline() {
       <div className="grid gap-4 sm:grid-cols-4 mb-6">
         <StatCard
           label="Active cases"
-          value={myCases.length}
+          value={active.length}
           tone="primary"
           hint="Across 4 pathways"
         />
         <StatCard
           label="New this week"
-          value={3}
-          delta="+2"
+          value={
+            participants.filter(
+              (p) => p.status === "New" || p.status === "Screened"
+            ).length
+          }
           tone="success"
         />
         <StatCard
-          label="Calls scheduled"
-          value={6}
-          hint="Next 5 business days"
+          label="Enrolled"
+          value={participants.filter((p) => p.status === "Enrolled").length}
+          hint="Outcome reached"
         />
         <StatCard
           label="At risk"
@@ -68,7 +96,6 @@ export default function AdvisorPipeline() {
         />
       </div>
 
-      {/* Risk strip */}
       {stalled.length > 0 && (
         <Card className="mb-6 border-warn/30 bg-warn-50/40">
           <CardHeader
@@ -112,7 +139,6 @@ export default function AdvisorPipeline() {
         </Card>
       )}
 
-      {/* Pipeline */}
       <div className="grid gap-4 lg:grid-cols-5">
         {pipelineStages.map((stage) => {
           const items = participants.filter((p) => p.status === stage.key);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
+import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -129,6 +130,14 @@ const statusTone: Record<Task["status"], "info" | "warn" | "success"> = {
 };
 
 export default function AdminTasksPage() {
+  return (
+    <RequireAuth requiredRole="admin">
+      <Inner />
+    </RequireAuth>
+  );
+}
+
+function Inner() {
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [filter, setFilter] = useState<"All" | Task["status"]>("All");
 
