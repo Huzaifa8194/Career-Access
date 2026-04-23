@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth, type PortalRole } from "@/lib/firebase/auth";
-import { isDataConnectReady } from "@/lib/firebase/dataconnect";
 
 type Props = {
   children: ReactNode;
@@ -19,14 +18,11 @@ export function RequireAuth({
   children,
   requiredRole,
   redirectTo = "/portal",
-  allowDemo = true,
+  allowDemo: _allowDemo = true,
 }: Props) {
   const router = useRouter();
   const { user, loading } = useAuth();
-
-  // If Data Connect isn't ready yet, the site runs in demo mode and we don't
-  // block unauthenticated access so the UI remains navigable.
-  const demoMode = allowDemo && !isDataConnectReady;
+  const demoMode = false;
 
   useEffect(() => {
     if (loading || demoMode) return;

@@ -1,9 +1,15 @@
 import {
-  createReferral,
-  listReferrals,
-  updateReferralStatus,
-} from "@dataconnect/generated";
-import { callDC } from "@/lib/firebase/dataconnect";
+  addDoc,
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  doc,
+  type Timestamp,
+} from "firebase/firestore";
+import { getFirebaseDb } from "@/lib/firebase/config";
 
 export type ReferralRow = {
   id: string;
@@ -40,28 +46,70 @@ export type ReferralSubmit = {
 export async function submitReferral(
   input: ReferralSubmit
 ): Promise<{ id: string | null; live: boolean }> {
-  const { data, live } = await callDC(() => createReferral(input), {
-    label: "createReferral",
+  const ref = await addDoc(collection(getFirebaseDb(), "referrals"), {
+    ...input,
+    status: "new",
+    source: "partner",
+    reasonForReferral: input.reason,
+    createdAt: serverTimestamp(),
   });
-  const id =
-    (data as { referral_insert?: { id: string } } | null)?.referral_insert?.id ?? null;
-  return { id, live };
+  return { id: ref.id, live: true };
 }
 
 export async function fetchReferrals(): Promise<{ rows: ReferralRow[]; live: boolean }> {
-  const { data, live } = await callDC(() => listReferrals(), {
-    label: "listReferrals",
+  const snap = await getDocs(
+    query(collection(getFirebaseDb(), "referrals"), orderBy("createdAt", "desc"))
+  );
+  const rows = snap.docs.map((d) => {
+    const row = d.data() as {
+      referrerName: string;
+      organizationName: string;
+      email: string;
+      applicantFirstName: string;
+      applicantLastName: string;
+      applicantEmail: string;
+      zipCode: string;
+      programInterest: string;
+      urgency: string;
+      reason?: string;
+      reasonForReferral?: string;
+      status?: string;
+      createdAt?: Timestamp | Date | string;
+    };
+    const createdAt =
+      row.createdAt instanceof Date
+        ? row.createdAt
+        : typeof row.createdAt === "string"
+          ? new Date(row.createdAt)
+          : row.createdAt && "toDate" in row.createdAt
+            ? row.createdAt.toDate()
+            : null;
+    return {
+      id: d.id,
+      referrerName: row.referrerName,
+      organizationName: row.organizationName,
+      email: row.email,
+      applicantFirstName: row.applicantFirstName,
+      applicantLastName: row.applicantLastName,
+      applicantEmail: row.applicantEmail,
+      zipCode: row.zipCode,
+      programInterest: row.programInterest,
+      urgency: row.urgency,
+      reason: row.reasonForReferral ?? row.reason ?? "",
+      status: row.status ?? "new",
+      createdAt: createdAt ? createdAt.toISOString() : new Date().toISOString(),
+    };
   });
   return {
-    rows: ((data as { referrals?: ReferralRow[] } | null)?.referrals ?? []).map((r) => ({
-      ...r,
-    })),
-    live,
+    rows,
+    live: true,
   };
 }
 
 export async function mutateReferralStatus(id: string, status: string) {
-  return callDC(() => updateReferralStatus({ id, status }), {
-    label: "updateReferralStatus",
+  await updateDoc(doc(getFirebaseDb(), "referrals", id), {
+    status,
+    updatedAt: serverTimestamp(),
   });
+  return { error: null, live: true };
 }

@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -18,11 +19,10 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { createCurrentUser, getCurrentUser } from "@dataconnect/generated";
+import { getDoc, setDoc } from "firebase/firestore";
 import { getFirebaseAuth, loadAnalytics } from "./config";
-import { callDC, isDataConnectReady } from "./dataconnect";
-
-export type PortalRole = "participant" | "advisor" | "admin";
+import { nowTimestamp, type PortalRole, userDoc } from "./firestore";
+export type { PortalRole } from "./firestore";
 
 export type AppUser = {
   uid: string;
@@ -57,8 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
 
-  // Hydrate an AppUser from the Data Connect `user` row. Falls back to the
-  // Firebase Auth profile when DataConnect hasn't been deployed yet.
   const hydrate = useCallback(async (fbu: FirebaseUser | null) => {
     if (!fbu) {
       setUser(null);
@@ -72,23 +70,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fullName: defaultName,
       role: "participant",
     };
-    if (!isDataConnectReady) {
-      setUser(fallback);
-      return;
-    }
-    const { data } = await callDC(() => getCurrentUser(), {
-      label: "getCurrentUser",
-    });
-    const row = (data as { user?: { id: string; fullName: string; email: string; role: string } })?.user;
-    if (row) {
+    const snap = await getDoc(userDoc(fbu.uid));
+    const row = snap.exists() ? snap.data() : null;
+    if (row?.uid) {
       setUser({
-        uid: row.id,
+        uid: row.uid,
         email: row.email,
         fullName: row.fullName,
-        role: (row.role as PortalRole) ?? "participant",
+        role: row.role ?? "participant",
       });
     } else {
-      setUser(fallback);
+      await setDoc(
+        userDoc(fbu.uid),
+        {
+          uid: fbu.uid,
+          email: fbu.email ?? fallback.email,
+          fullName: fbu.displayName ?? fallback.fullName,
+          role: "participant",
+          createdAt: nowTimestamp(),
+        },
+        { merge: true }
+      );
+      setUser({ ...fallback, role: "participant" });
     }
   }, []);
 
@@ -142,12 +145,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password
         );
         await updateProfile(cred.user, { displayName: fullName });
-        // Create the User row in Data Connect (best effort — in stub mode
-        // this is a no-op and the session still works).
-        await callDC(
-          () => createCurrentUser({ fullName, email, role }),
-          { label: "createCurrentUser" }
-        );
+        await setDoc(userDoc(cred.user.uid), {
+          uid: cred.user.uid,
+          email,
+          fullName,
+          role,
+          createdAt: nowTimestamp(),
+        });
         const appUser: AppUser = {
           uid: cred.user.uid,
           email,
@@ -156,6 +160,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(appUser);
         return appUser;
+      } catch (error) {
+        const current = getFirebaseAuth().currentUser;
+        if (current && !current.emailVerified) {
+          try {
+            await deleteUser(current);
+          } catch {
+            // If cleanup fails, user can retry and/or admin can remove dangling auth user.
+          }
+        }
+        throw error;
       } finally {
         setSigningIn(false);
       }

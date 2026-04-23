@@ -1,4 +1,11 @@
-import { adminOverview, listAdvisors } from "@dataconnect/generated";
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  where,
+  type Timestamp,
+} from "firebase/firestore";
 import {
   adminMetrics as demoMetrics,
   advisors as demoAdvisors,
@@ -8,7 +15,7 @@ import {
   type Pathway,
   type Source,
 } from "@/lib/data";
-import { callDC } from "@/lib/firebase/dataconnect";
+import { getFirebaseDb } from "@/lib/firebase/config";
 
 export type AdvisorOption = { id: string; fullName: string; email: string };
 
@@ -41,11 +48,18 @@ function daysAgo(d: Date, n: number) {
 }
 
 export async function fetchAdvisors(): Promise<AdvisorOption[]> {
-  const { data, live } = await callDC(() => listAdvisors(), {
-    label: "listAdvisors",
+  const snap = await getDocs(
+    query(collection(getFirebaseDb(), "users"), where("role", "==", "advisor"))
+  );
+  const rows = snap.docs.map((d) => {
+    const data = d.data() as { fullName?: string; email?: string };
+    return {
+      id: d.id,
+      fullName: data.fullName ?? "Advisor",
+      email: data.email ?? "",
+    };
   });
-  const rows = (data as { users?: AdvisorOption[] } | null)?.users ?? [];
-  if (live && rows.length) return rows;
+  if (rows.length) return rows;
   return demoAdvisors.map((name, i) => ({
     id: `demo_${i}`,
     fullName: name,
@@ -54,60 +68,62 @@ export async function fetchAdvisors(): Promise<AdvisorOption[]> {
 }
 
 export async function fetchAdminSnapshot(): Promise<AdminSnapshot> {
-  const { data, live } = await callDC(() => adminOverview(), {
-    label: "adminOverview",
+  const participantSnap = await getDocs(
+    query(collection(getFirebaseDb(), "participants"), orderBy("submittedAt", "desc"))
+  );
+  const participantsLive = participantSnap.docs.map((d) => {
+    const row = d.data() as {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      pathway?: string;
+      status?: string;
+      source?: string;
+      submittedAt?: Timestamp | Date | string;
+      assignedAdvisorName?: string | null;
+    };
+    const submittedRaw = row.submittedAt;
+    const submittedAt =
+      submittedRaw instanceof Date
+        ? submittedRaw
+        : typeof submittedRaw === "string"
+          ? new Date(submittedRaw)
+          : submittedRaw && "toDate" in submittedRaw
+            ? submittedRaw.toDate()
+            : null;
+    return {
+      id: d.id,
+      firstName: row.firstName ?? "",
+      lastName: row.lastName ?? "",
+      email: row.email ?? "",
+      pathway: row.pathway ?? "College + FAFSA",
+      status: row.status ?? "New",
+      source: row.source ?? "Direct",
+      submittedAt,
+      assignedAdvisor: row.assignedAdvisorName ?? null,
+    };
   });
-  type DCOverview = {
-    totalParticipants?: { _count?: number };
-    enrolled?: { id: string }[];
-    stageNew?: { id: string }[];
-    stageScreened?: { id: string }[];
-    stageIntake?: { id: string }[];
-    stageAdvising?: { id: string }[];
-    stageEnrolled?: { id: string }[];
-    stageInactive?: { id: string }[];
-    pathCollege?: { id: string }[];
-    pathTraining?: { id: string }[];
-    pathApprenticeship?: { id: string }[];
-    pathGED?: { id: string }[];
-    sourceDirect?: { id: string }[];
-    sourceReferral?: { id: string }[];
-    sourcePartner?: { id: string }[];
-    sourceEvent?: { id: string }[];
-    callsScheduled?: { id: string }[];
-    recent?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-      pathway: string;
-      status: string;
-      source: string;
-      submittedAt: string;
-      assignedAdvisor?: { fullName: string } | null;
-    }[];
-  };
-  const d = (data ?? {}) as DCOverview;
+  const appointmentSnap = await getDocs(collection(getFirebaseDb(), "appointments"));
+  const total = participantsLive.length;
+  const enrolled = participantsLive.filter((p) => p.status === "Enrolled").length;
+  const weekAgo = daysAgo(new Date(), 7);
+  const newThisWeek = participantsLive.filter((p) => p.submittedAt && p.submittedAt >= weekAgo).length;
+  const calls = appointmentSnap.docs.length;
 
   const stageCounts: Record<ParticipantStatus, number> = {
-    New: d.stageNew?.length ?? 0,
-    Screened: d.stageScreened?.length ?? 0,
-    "Intake complete": d.stageIntake?.length ?? 0,
-    Advising: d.stageAdvising?.length ?? 0,
-    Enrolled: d.stageEnrolled?.length ?? 0,
-    Inactive: d.stageInactive?.length ?? 0,
+    New: participantsLive.filter((p) => p.status === "New").length,
+    Screened: participantsLive.filter((p) => p.status === "Screened").length,
+    "Intake complete": participantsLive.filter((p) => p.status === "Intake complete").length,
+    Advising: participantsLive.filter((p) => p.status === "Advising").length,
+    Enrolled: participantsLive.filter((p) => p.status === "Enrolled").length,
+    Inactive: participantsLive.filter((p) => p.status === "Inactive").length,
   };
 
-  const total = d.totalParticipants?._count ?? 0;
-  const enrolled = d.enrolled?.length ?? 0;
-  const newThisWeek = 0; // Data Connect aggregate on submittedAt would be ideal; falls back to demo.
-  const calls = d.callsScheduled?.length ?? 0;
-
   const pathCounts: { label: Pathway; count: number }[] = [
-    { label: "College + FAFSA", count: d.pathCollege?.length ?? 0 },
-    { label: "Short-term training", count: d.pathTraining?.length ?? 0 },
-    { label: "Apprenticeship", count: d.pathApprenticeship?.length ?? 0 },
-    { label: "GED / HSE", count: d.pathGED?.length ?? 0 },
+    { label: "College + FAFSA", count: participantsLive.filter((p) => p.pathway === "College + FAFSA").length },
+    { label: "Short-term training", count: participantsLive.filter((p) => p.pathway === "Short-term training").length },
+    { label: "Apprenticeship", count: participantsLive.filter((p) => p.pathway === "Apprenticeship").length },
+    { label: "GED / HSE", count: participantsLive.filter((p) => p.pathway === "GED / HSE").length },
   ];
   const pathTotal = pathCounts.reduce((n, c) => n + c.count, 0) || 1;
   const pathwayDistribution = pathCounts.map((c) => ({
@@ -116,10 +132,10 @@ export async function fetchAdminSnapshot(): Promise<AdminSnapshot> {
   }));
 
   const sourceCounts: { label: Source; count: number }[] = [
-    { label: "Direct", count: d.sourceDirect?.length ?? 0 },
-    { label: "Referral", count: d.sourceReferral?.length ?? 0 },
-    { label: "Partner", count: d.sourcePartner?.length ?? 0 },
-    { label: "Event", count: d.sourceEvent?.length ?? 0 },
+    { label: "Direct", count: participantsLive.filter((p) => p.source === "Direct").length },
+    { label: "Referral", count: participantsLive.filter((p) => p.source === "Referral").length },
+    { label: "Partner", count: participantsLive.filter((p) => p.source === "Partner").length },
+    { label: "Event", count: participantsLive.filter((p) => p.source === "Event").length },
   ];
   const sourceTotal = sourceCounts.reduce((n, c) => n + c.count, 0) || 1;
   const sourceDistribution = sourceCounts.map((c) => ({
@@ -127,7 +143,7 @@ export async function fetchAdminSnapshot(): Promise<AdminSnapshot> {
     pct: Math.round((c.count / sourceTotal) * 100),
   }));
 
-  const recent = (d.recent ?? []).map((r) => ({
+  const recent = participantsLive.slice(0, 8).map((r) => ({
     id: r.id,
     firstName: r.firstName,
     lastName: r.lastName,
@@ -135,13 +151,11 @@ export async function fetchAdminSnapshot(): Promise<AdminSnapshot> {
     pathway: r.pathway,
     status: r.status,
     source: r.source,
-    submittedAt: r.submittedAt
-      ? new Date(r.submittedAt).toISOString().slice(0, 10)
-      : "",
-    assignedAdvisor: r.assignedAdvisor?.fullName ?? null,
+    submittedAt: r.submittedAt ? r.submittedAt.toISOString().slice(0, 10) : "",
+    assignedAdvisor: r.assignedAdvisor,
   }));
 
-  if (live && total > 0) {
+  if (total > 0) {
     return {
       live: true,
       totalApplicants: total,

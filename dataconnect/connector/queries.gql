@@ -344,6 +344,55 @@ query ListParticipantMessages($participantId: UUID!) @auth(level: USER) {
 }
 
 ########################################################################
+# TASKS (per participant)
+########################################################################
+
+query ListTasksForParticipant($participantId: UUID!) @auth(level: USER) {
+  tasks(
+    where: { participantId: { eq: $participantId } }
+    orderBy: [{ dueDate: ASC }, { createdAt: DESC }]
+  ) {
+    id
+    title
+    description
+    status
+    priority
+    dueDate
+    createdAt
+  }
+}
+
+query ListOpenTasks($limit: Int) @auth(level: USER) {
+  tasks(
+    where: { status: { in: ["open", "in-progress"] } }
+    orderBy: [{ dueDate: ASC }]
+    limit: $limit
+  ) {
+    id
+    title
+    status
+    priority
+    dueDate
+    participant { id firstName lastName }
+  }
+}
+
+query ListMyTasks @auth(level: USER) {
+  tasks(
+    where: { participant: { userId: { eq_expr: "auth.uid" } } }
+    orderBy: [{ dueDate: ASC }, { createdAt: DESC }]
+  ) {
+    id
+    title
+    description
+    status
+    priority
+    dueDate
+    createdAt
+  }
+}
+
+########################################################################
 # ADMIN DASHBOARD
 ########################################################################
 

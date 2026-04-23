@@ -7,6 +7,6 @@ schema:
     postgresql:
       database: "careeraccessdb"
       cloudSql:
-        instanceId: "career-access-cloudsql"
+        instanceId: "careeraccesshub-d3d27-instance"
 connectorDirs:
   - "./connector"

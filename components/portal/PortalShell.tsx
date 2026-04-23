@@ -21,7 +21,6 @@ import {
   Compass,
 } from "@/components/icons";
 import { useOptionalAuth } from "@/lib/firebase/auth";
-import { isDataConnectReady } from "@/lib/firebase/dataconnect";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
 
@@ -325,12 +324,8 @@ export function PortalShell({
                   <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-warn" />
                 </button>
                 <span className="hidden sm:inline-flex h-9 items-center gap-2 rounded-md border border-line px-2.5 text-[13px] text-ink-muted">
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isDataConnectReady ? "bg-action" : "bg-warn"
-                    }`}
-                  />
-                  {isDataConnectReady ? "Live" : "Demo data"}
+                  <span className="h-1.5 w-1.5 rounded-full bg-action" />
+                  Live
                 </span>
               </div>
             </div>

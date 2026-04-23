@@ -1,17 +1,17 @@
 import {
-  assignAdvisor,
-  createApplication,
-  createParticipant,
-  flagParticipantRisk,
-  getMyParticipant,
-  getParticipant,
-  getParticipantDetail,
-  linkCurrentUserToParticipant,
-  listAllParticipants,
-  listParticipantsByAdvisor,
-  updateParticipantPathway,
-  updateParticipantStatus,
-} from "@dataconnect/generated";
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  type Timestamp,
+} from "firebase/firestore";
 import {
   participants as demoParticipants,
   participantSummary as demoSummary,
@@ -20,17 +20,16 @@ import {
   type Pathway,
   type Source,
 } from "@/lib/data";
-import { callDC, isDataConnectReady } from "@/lib/firebase/dataconnect";
-import { deserializeSupport, serializeSupport } from "@/lib/pathway";
+import { getFirebaseAuth } from "@/lib/firebase/config";
+import { getFirebaseDb } from "@/lib/firebase/config";
 
 export type PortalParticipant = DemoParticipant & {
   _live: boolean;
 };
 
-type DCUser = { id: string; fullName: string; email: string } | null | undefined;
-
 type DCParticipantRow = {
   id: string;
+  userId?: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -46,7 +45,7 @@ type DCParticipantRow = {
   lastActivityAt?: string | null;
   riskFlag?: boolean | null;
   educationLevel?: string | null;
-  supportNeeded?: string | null;
+  supportNeeded?: string[] | null;
   currentlyEnrolled?: boolean | null;
   programInterest?: string | null;
   employed?: boolean | null;
@@ -55,7 +54,8 @@ type DCParticipantRow = {
   consentAccuracy?: boolean | null;
   consentContact?: boolean | null;
   consentDataShare?: boolean | null;
-  assignedAdvisor?: DCUser;
+  assignedAdvisorId?: string | null;
+  assignedAdvisorName?: string | null;
 };
 
 function humanizeActivity(iso?: string | null): string {
@@ -89,11 +89,11 @@ function mapParticipant(row: DCParticipantRow): PortalParticipant {
     status: (row.status as ParticipantStatus) ?? "New",
     source: (row.source as Source) ?? "Direct",
     appliedAt: row.submittedAt ? new Date(row.submittedAt).toISOString().slice(0, 10) : "",
-    assignedAdvisor: row.assignedAdvisor?.fullName,
+    assignedAdvisor: row.assignedAdvisorName ?? undefined,
     lastActivity: humanizeActivity(row.lastActivityAt),
     risk,
     educationLevel: row.educationLevel ?? undefined,
-    supportNeeded: deserializeSupport(row.supportNeeded),
+    supportNeeded: row.supportNeeded ?? [],
     _live: true,
   };
 }
@@ -107,11 +107,11 @@ function markDemo(p: DemoParticipant): PortalParticipant {
 // ────────────────────────────────────────────────────────────────────────────
 
 export async function fetchAllParticipants(): Promise<PortalParticipant[]> {
-  const { data, live } = await callDC(() => listAllParticipants(), {
-    label: "listAllParticipants",
-  });
-  const rows = (data as { participants?: DCParticipantRow[] } | null)?.participants ?? [];
-  if (live && rows.length) return rows.map(mapParticipant);
+  const snap = await getDocs(
+    query(collection(getFirebaseDb(), "participants"), orderBy("submittedAt", "desc"))
+  );
+  const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<DCParticipantRow, "id">) }));
+  if (rows.length) return rows.map(mapParticipant);
   return demoParticipants.map(markDemo);
 }
 
@@ -119,37 +119,40 @@ export async function fetchParticipantsForAdvisor(
   advisorId: string | null
 ): Promise<PortalParticipant[]> {
   if (!advisorId) return fetchAllParticipants();
-  const { data, live } = await callDC(
-    () => listParticipantsByAdvisor({ advisorId }),
-    { label: "listParticipantsByAdvisor" }
+  const snap = await getDocs(
+    query(
+      collection(getFirebaseDb(), "participants"),
+      where("assignedAdvisorId", "==", advisorId),
+      orderBy("submittedAt", "desc")
+    )
   );
-  const rows = (data as { participants?: DCParticipantRow[] } | null)?.participants ?? [];
-  if (live && rows.length) return rows.map(mapParticipant);
+  const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<DCParticipantRow, "id">) }));
+  if (rows.length) return rows.map(mapParticipant);
   return demoParticipants.map(markDemo);
 }
 
 export async function fetchParticipant(id: string): Promise<PortalParticipant | null> {
-  const { data, live } = await callDC(() => getParticipant({ id }), {
-    label: "getParticipant",
-  });
-  const row = (data as { participant?: DCParticipantRow } | null)?.participant;
-  if (live && row) return mapParticipant(row);
+  const snap = await getDoc(doc(getFirebaseDb(), "participants", id));
+  if (snap.exists()) return mapParticipant({ id: snap.id, ...(snap.data() as Omit<DCParticipantRow, "id">) });
   return demoParticipants.find((p) => p.id === id)
     ? markDemo(demoParticipants.find((p) => p.id === id) as DemoParticipant)
     : null;
 }
 
 export async function fetchParticipantDetail(id: string) {
-  const { data, live } = await callDC(() => getParticipantDetail({ id }), {
-    label: "getParticipantDetail",
-  });
-  if (live && data) {
+  const participant = await fetchParticipant(id);
+  if (participant?._live) {
+    const apps = await getDocs(
+      query(
+        collection(getFirebaseDb(), "applications"),
+        where("participantId", "==", id),
+        orderBy("createdAt", "desc")
+      )
+    );
     return {
       live: true,
-      participant: (data as { participant?: DCParticipantRow }).participant
-        ? mapParticipant((data as { participant: DCParticipantRow }).participant)
-        : null,
-      raw: data,
+      participant,
+      raw: { applications: apps.docs.map((d) => ({ id: d.id, ...d.data() })) },
     };
   }
   const demo = demoParticipants.find((p) => p.id === id);
@@ -161,11 +164,20 @@ export async function fetchParticipantDetail(id: string) {
 }
 
 export async function fetchMyParticipant(): Promise<PortalParticipant | null> {
-  const { data, live } = await callDC(() => getMyParticipant(), {
-    label: "getMyParticipant",
-  });
-  const row = (data as { participants?: DCParticipantRow[] } | null)?.participants?.[0];
-  if (live && row) return mapParticipant(row);
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (uid) {
+    const snap = await getDocs(
+      query(
+        collection(getFirebaseDb(), "participants"),
+        where("userId", "==", uid),
+        limit(1)
+      )
+    );
+    const row = snap.docs[0];
+    if (row) {
+      return mapParticipant({ id: row.id, ...(row.data() as Omit<DCParticipantRow, "id">) });
+    }
+  }
   return markDemo({
     id: demoSummary ? "p_1042" : "",
     firstName: "Jordan",
@@ -220,57 +232,44 @@ export type IntakeSubmit = {
 export async function submitIntake(
   input: IntakeSubmit
 ): Promise<{ participantId: string | null; applicationId: string | null; live: boolean }> {
-  if (!isDataConnectReady) {
-    return { participantId: null, applicationId: null, live: false };
-  }
-  const participantResp = await callDC(
-    () =>
-      createParticipant({
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        preferredContactMethod: input.preferredContactMethod,
-        address: input.address,
-        city: input.city,
-        state: input.state,
-        zipCode: input.zipCode,
-        educationLevel: input.educationLevel,
-        currentlyEnrolled: input.currentlyEnrolled,
-        programInterest: input.programInterest,
-        employed: input.employed,
-        jobTitle: input.jobTitle ?? null,
-        supportNeeded: serializeSupport(input.supportNeeded) || null,
-        pathway: input.pathway,
-        status: "New",
-        source: input.source,
-        consentAccuracy: input.consentAccuracy,
-        consentContact: input.consentContact,
-        consentDataShare: input.consentDataShare,
-      }),
-    { label: "createParticipant" }
-  );
-  const participantId =
-    (participantResp.data as { participant_insert?: { id: string } } | null)
-      ?.participant_insert?.id ?? null;
-  if (!participantId) {
-    return { participantId: null, applicationId: null, live: false };
-  }
-  const applicationResp = await callDC(
-    () =>
-      createApplication({
-        participantId,
-        eligibilityData: JSON.stringify(input.eligibilityAnswers),
-        intakeData: JSON.stringify(input.intakeAnswers),
-        status: "submitted",
-        pathwayRecommendation: input.pathway,
-      }),
-    { label: "createApplication" }
-  );
-  const applicationId =
-    (applicationResp.data as { application_insert?: { id: string } } | null)
-      ?.application_insert?.id ?? null;
-  return { participantId, applicationId, live: true };
+  const uid = getFirebaseAuth().currentUser?.uid ?? null;
+  const participantRef = await addDoc(collection(getFirebaseDb(), "participants"), {
+    userId: uid,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    email: input.email,
+    phone: input.phone,
+    preferredContactMethod: input.preferredContactMethod,
+    address: input.address,
+    city: input.city,
+    state: input.state,
+    zipCode: input.zipCode,
+    educationLevel: input.educationLevel,
+    currentlyEnrolled: input.currentlyEnrolled,
+    programInterest: input.programInterest,
+    employed: input.employed,
+    jobTitle: input.jobTitle ?? null,
+    supportNeeded: input.supportNeeded,
+    pathway: input.pathway,
+    status: "New",
+    source: input.source,
+    consentAccuracy: input.consentAccuracy,
+    consentContact: input.consentContact,
+    consentDataShare: input.consentDataShare,
+    submittedAt: serverTimestamp(),
+    lastActivityAt: serverTimestamp(),
+    riskFlag: false,
+  });
+  const applicationRef = await addDoc(collection(getFirebaseDb(), "applications"), {
+    participantId: participantRef.id,
+    eligibilityAnswers: input.eligibilityAnswers,
+    intakeAnswers: input.intakeAnswers,
+    status: "submitted",
+    pathwayRecommendation: input.pathway,
+    submittedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  });
+  return { participantId: participantRef.id, applicationId: applicationRef.id, live: true };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -278,31 +277,49 @@ export async function submitIntake(
 // ────────────────────────────────────────────────────────────────────────────
 
 export async function mutateStatus(id: string, status: ParticipantStatus) {
-  return callDC(() => updateParticipantStatus({ id, status }), {
-    label: "updateParticipantStatus",
+  await updateDoc(doc(getFirebaseDb(), "participants", id), {
+    status,
+    lastActivityAt: serverTimestamp(),
   });
+  return { error: null, live: true };
 }
 
 export async function mutateAssignAdvisor(id: string, advisorId: string) {
-  return callDC(() => assignAdvisor({ id, advisorId }), {
-    label: "assignAdvisor",
+  let advisorName: string | null = null;
+  const advisorSnap = await getDoc(doc(getFirebaseDb(), "users", advisorId));
+  if (advisorSnap.exists()) {
+    advisorName = (advisorSnap.data() as { fullName?: string }).fullName ?? null;
+  }
+  await updateDoc(doc(getFirebaseDb(), "participants", id), {
+    assignedAdvisorId: advisorId,
+    assignedAdvisorName: advisorName,
+    lastActivityAt: serverTimestamp(),
   });
+  return { error: null, live: true };
 }
 
 export async function mutatePathway(id: string, pathway: Pathway) {
-  return callDC(() => updateParticipantPathway({ id, pathway }), {
-    label: "updateParticipantPathway",
+  await updateDoc(doc(getFirebaseDb(), "participants", id), {
+    pathway,
+    lastActivityAt: serverTimestamp(),
   });
+  return { error: null, live: true };
 }
 
 export async function mutateRiskFlag(id: string, riskFlag: boolean) {
-  return callDC(() => flagParticipantRisk({ id, riskFlag }), {
-    label: "flagParticipantRisk",
+  await updateDoc(doc(getFirebaseDb(), "participants", id), {
+    riskFlag,
+    lastActivityAt: serverTimestamp(),
   });
+  return { error: null, live: true };
 }
 
 export async function linkMyAccountTo(id: string) {
-  return callDC(() => linkCurrentUserToParticipant({ id }), {
-    label: "linkCurrentUserToParticipant",
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (!uid) return { error: new Error("Not authenticated"), live: false };
+  await updateDoc(doc(getFirebaseDb(), "participants", id), {
+    userId: uid,
+    lastActivityAt: serverTimestamp(),
   });
+  return { error: null, live: true };
 }
