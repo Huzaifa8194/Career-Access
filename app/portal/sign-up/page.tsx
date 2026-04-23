@@ -19,6 +19,8 @@ function mapSignUpError(code: string | null | undefined) {
       return "Use at least 8 characters for your password.";
     case "auth/network-request-failed":
       return "Network error — check your connection.";
+    case "firestore/permission-denied":
+      return "Account created but profile write was blocked by Firestore rules. Deploy/update Firestore rules and try again.";
     default:
       return "We couldn't create your account. Please try again.";
   }

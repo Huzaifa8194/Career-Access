@@ -11,7 +11,6 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
-  deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -57,10 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
 
-  const hydrate = useCallback(async (fbu: FirebaseUser | null) => {
+  const hydrate = useCallback(async (fbu: FirebaseUser | null): Promise<AppUser | null> => {
     if (!fbu) {
       setUser(null);
-      return;
+      return null;
     }
     const defaultName =
       fbu.displayName ?? (fbu.email ? fbu.email.split("@")[0] : "Guest");
@@ -70,16 +69,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fullName: defaultName,
       role: "participant",
     };
-    const snap = await getDoc(userDoc(fbu.uid));
-    const row = snap.exists() ? snap.data() : null;
-    if (row?.uid) {
-      setUser({
-        uid: row.uid,
-        email: row.email,
-        fullName: row.fullName,
-        role: row.role ?? "participant",
-      });
-    } else {
+    try {
+      const snap = await getDoc(userDoc(fbu.uid));
+      const row = snap.exists() ? snap.data() : null;
+      if (row?.uid) {
+        const hydratedUser: AppUser = {
+          uid: row.uid,
+          email: row.email,
+          fullName: row.fullName,
+          role: row.role ?? "participant",
+        };
+        setUser(hydratedUser);
+        return hydratedUser;
+      }
       await setDoc(
         userDoc(fbu.uid),
         {
@@ -92,14 +94,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         { merge: true }
       );
       setUser({ ...fallback, role: "participant" });
+      return { ...fallback, role: "participant" };
+    } catch (error) {
+      // Keep auth UX alive even if profile sync fails temporarily.
+      // eslint-disable-next-line no-console
+      console.warn("[Auth] profile hydrate failed:", error);
+      setUser(fallback);
+      return fallback;
     }
   }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(getFirebaseAuth(), async (fbu) => {
       setFirebaseUser(fbu);
-      await hydrate(fbu);
-      setLoading(false);
+      try {
+        await hydrate(fbu);
+      } finally {
+        setLoading(false);
+      }
     });
     void loadAnalytics();
     return unsub;
@@ -113,13 +125,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password
       );
-      await hydrate(cred.user);
-      return {
-        uid: cred.user.uid,
-        email: cred.user.email ?? email,
-        fullName: cred.user.displayName ?? email.split("@")[0],
-        role: "participant" as PortalRole,
-      };
+      const hydrated = await hydrate(cred.user);
+      return (
+        hydrated ?? {
+          uid: cred.user.uid,
+          email: cred.user.email ?? email,
+          fullName: cred.user.displayName ?? email.split("@")[0],
+          role: "participant",
+        }
+      );
     } finally {
       setSigningIn(false);
     }
@@ -145,13 +159,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password
         );
         await updateProfile(cred.user, { displayName: fullName });
-        await setDoc(userDoc(cred.user.uid), {
-          uid: cred.user.uid,
-          email,
-          fullName,
-          role,
-          createdAt: nowTimestamp(),
-        });
+        await setDoc(
+          userDoc(cred.user.uid),
+          {
+            uid: cred.user.uid,
+            email,
+            fullName,
+            role,
+            createdAt: nowTimestamp(),
+          },
+          { merge: true }
+        );
         const appUser: AppUser = {
           uid: cred.user.uid,
           email,
@@ -161,13 +179,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(appUser);
         return appUser;
       } catch (error) {
-        const current = getFirebaseAuth().currentUser;
-        if (current && !current.emailVerified) {
-          try {
-            await deleteUser(current);
-          } catch {
-            // If cleanup fails, user can retry and/or admin can remove dangling auth user.
-          }
+        const fbError = error as { code?: string; message?: string };
+        if (
+          fbError?.code === "permission-denied" ||
+          fbError?.code === "firestore/permission-denied"
+        ) {
+          throw Object.assign(new Error("Profile write denied by Firestore rules"), {
+            code: "firestore/permission-denied",
+          });
         }
         throw error;
       } finally {
