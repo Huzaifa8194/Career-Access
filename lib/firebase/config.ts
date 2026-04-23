@@ -15,13 +15,27 @@ import {
   type FirebaseStorage,
 } from "firebase/storage";
 
-const firebaseConfig = {
+const EXPECTED = {
   apiKey: "AIzaSyDI5oB9Fdae7qBIRfuAKZwIZbQ3sUKg88U",
   authDomain: "careeraccesshub-d3d27.firebaseapp.com",
   projectId: "careeraccesshub-d3d27",
   storageBucket: "careeraccesshub-d3d27.firebasestorage.app",
   messagingSenderId: "969717593106",
   appId: "1:969717593106:web:f37927b0cfafbf22bc94cb",
+  firestoreDatabaseId: "(default)",
+} as const;
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || EXPECTED.apiKey,
+  authDomain:
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || EXPECTED.authDomain,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || EXPECTED.projectId,
+  storageBucket:
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || EXPECTED.storageBucket,
+  messagingSenderId:
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ||
+    EXPECTED.messagingSenderId,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || EXPECTED.appId,
 };
 
 let app: FirebaseApp | null = null;
@@ -33,6 +47,7 @@ let emulatorsHooked = false;
 export function getFirebaseApp(): FirebaseApp {
   if (app) return app;
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  warnIfConfigMismatch();
   return app;
 }
 
@@ -45,7 +60,10 @@ export function getFirebaseAuth(): Auth {
 
 export function getFirebaseDb(): Firestore {
   if (db) return db;
-  db = getFirestore(getFirebaseApp());
+  const dbId =
+    process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID ||
+    EXPECTED.firestoreDatabaseId;
+  db = getFirestore(getFirebaseApp(), dbId);
   hookEmulators();
   return db;
 }
@@ -87,4 +105,26 @@ function singleFlags(): boolean {
     process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === "1" ||
     process.env.NEXT_PUBLIC_USE_STORAGE_EMULATOR === "1"
   );
+}
+
+function warnIfConfigMismatch() {
+  if (typeof window === "undefined") return;
+  if (process.env.NODE_ENV !== "production") return;
+  const problems: string[] = [];
+  if (firebaseConfig.projectId !== EXPECTED.projectId) {
+    problems.push(`projectId=${firebaseConfig.projectId}`);
+  }
+  if (firebaseConfig.authDomain !== EXPECTED.authDomain) {
+    problems.push(`authDomain=${firebaseConfig.authDomain}`);
+  }
+  if (firebaseConfig.storageBucket !== EXPECTED.storageBucket) {
+    problems.push(`storageBucket=${firebaseConfig.storageBucket}`);
+  }
+  if (problems.length) {
+    console.warn(
+      `[Firebase config mismatch] Expected ${EXPECTED.projectId}. Received: ${problems.join(
+        ", "
+      )}`
+    );
+  }
 }
