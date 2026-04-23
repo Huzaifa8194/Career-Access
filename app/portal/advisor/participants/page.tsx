@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
-import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { type ParticipantStatus } from "@/lib/data";
 import { Search, ArrowRight } from "@/components/icons";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
-  fetchAllParticipants,
-  type PortalParticipant,
+  subscribeParticipants,
+  type ParticipantListItem,
 } from "@/lib/services/participants";
+import type { ParticipantStatus } from "@/lib/firebase/types";
 
 const statusTone: Record<
   ParticipantStatus,
@@ -25,44 +25,61 @@ const statusTone: Record<
   Inactive: "muted",
 };
 
-type Filter = "All" | "Advising" | "Intake complete" | "Screened" | "Inactive";
+const filterOptions: Array<"All" | "Risk" | ParticipantStatus> = [
+  "All",
+  "Advising",
+  "Intake complete",
+  "Screened",
+  "New",
+  "Enrolled",
+  "Inactive",
+  "Risk",
+];
 
 export default function AdvisorParticipantsPage() {
   return (
-    <RequireAuth requiredRole="advisor">
-      <Inner />
-    </RequireAuth>
+    <RoleGuard allow={["advisor", "admin"]}>
+      <AdvisorParticipants />
+    </RoleGuard>
   );
 }
 
-function Inner() {
-  const [rows, setRows] = useState<PortalParticipant[]>([]);
-  const [filter, setFilter] = useState<Filter>("All");
-  const [query, setQuery] = useState("");
+function AdvisorParticipants() {
+  const [rows, setRows] = useState<ParticipantListItem[]>([]);
+  const [filter, setFilter] =
+    useState<(typeof filterOptions)[number]>("All");
+  const [q, setQ] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const data = await fetchAllParticipants();
-      if (!cancelled) setRows(data);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    return subscribeParticipants(setRows);
   }, []);
 
   const filtered = useMemo(() => {
-    const pool = rows.filter((p) => filter === "All" || p.status === filter);
-    if (!query.trim()) return pool;
-    const q = query.trim().toLowerCase();
-    return pool.filter(
-      (p) =>
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
-        p.email.toLowerCase().includes(q) ||
-        (p.zip ?? "").toLowerCase().includes(q) ||
-        (p.pathway ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, filter, query]);
+    let arr = rows;
+    if (filter === "Risk") {
+      arr = arr.filter((p) => p.risk !== "ok");
+    } else if (filter !== "All") {
+      arr = arr.filter((p) => p.status === filter);
+    }
+    const term = q.trim().toLowerCase();
+    if (term) {
+      arr = arr.filter((p) =>
+        [
+          p.firstName,
+          p.lastName,
+          p.email,
+          p.zip,
+          p.pathway,
+          p.assignedAdvisorName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      );
+    }
+    return arr;
+  }, [rows, filter, q]);
 
   return (
     <PortalShell
@@ -77,35 +94,29 @@ function Inner() {
           />
           <input
             type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, ZIP, or program"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by name, ZIP, pathway, advisor"
             className="h-9 w-72 rounded-md border border-line bg-white pl-9 pr-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {(
-          ["All", "Advising", "Intake complete", "Screened", "Inactive"] as Filter[]
-        ).map((f) => {
-          const active = filter === f;
-          return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={[
-                "h-8 rounded-md px-3 text-[13px] font-medium border transition-colors",
-                active
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white text-ink-muted border-line hover:text-ink",
-              ].join(" ")}
-            >
-              {f}
-            </button>
-          );
-        })}
+        {filterOptions.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={[
+              "h-8 rounded-md px-3 text-[13px] font-medium border transition-colors",
+              f === filter
+                ? "bg-primary text-white border-primary"
+                : "bg-white text-ink-muted border-line hover:text-ink",
+            ].join(" ")}
+          >
+            {f}
+          </button>
+        ))}
       </div>
 
       <Card className="overflow-hidden">
@@ -123,6 +134,16 @@ function Inner() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-5 py-6 text-center text-[13px] text-ink-muted"
+                  >
+                    No participants match these filters.
+                  </td>
+                </tr>
+              )}
               {filtered.map((p) => (
                 <tr key={p.id} className="hover:bg-canvas/50">
                   <Td>
@@ -138,12 +159,12 @@ function Inner() {
                   </Td>
                   <Td>{p.pathway}</Td>
                   <Td>
-                    <Badge tone={statusTone[p.status] ?? "muted"}>{p.status}</Badge>
+                    <Badge tone={statusTone[p.status]}>{p.status}</Badge>
                   </Td>
                   <Td>{p.source}</Td>
                   <Td className="text-ink-muted">{p.lastActivity}</Td>
                   <Td>
-                    {p.risk && p.risk !== "ok" ? (
+                    {p.risk !== "ok" ? (
                       <Badge tone="warn" dot>
                         {p.risk === "inactive" ? "Inactive" : "Stalled"}
                       </Badge>
@@ -169,13 +190,25 @@ function Inner() {
   );
 }
 
-function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Th({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <th className={`px-5 py-3 font-semibold text-[12px] ${className}`}>
       {children}
     </th>
   );
 }
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Td({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return <td className={`px-5 py-3 align-top ${className}`}>{children}</td>;
 }

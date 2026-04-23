@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/Button";
 import { Field, Select, Input } from "@/components/ui/Field";
 import { ArrowRight, Clock } from "@/components/icons";
 import { submitAppointment } from "@/lib/services/appointments";
+import { bookFlow } from "@/lib/flowState";
+import { useAuth } from "@/lib/firebase/auth";
 
 const steps = [{ label: "Schedule" }, { label: "Confirmation" }];
 
@@ -28,80 +30,57 @@ const slots = [
   "3:30 PM",
 ];
 
-const tzOffsetHours: Record<string, number> = {
-  ET: -4,
-  CT: -5,
-  MT: -6,
-  PT: -7,
-};
-
-function toScheduledISO(date: string, time: string, tz: string): string {
-  const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return new Date().toISOString();
-  let hour = parseInt(match[1], 10);
-  const minute = parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
-  if (period === "PM" && hour !== 12) hour += 12;
-  if (period === "AM" && hour === 12) hour = 0;
-  const offsetHours = tzOffsetHours[tz] ?? -4;
-  const [y, m, d] = date.split("-").map((n) => parseInt(n, 10));
-  const utc = Date.UTC(y, m - 1, d, hour - offsetHours, minute, 0);
-  return new Date(utc).toISOString();
-}
-
 export default function BookPage() {
   const router = useRouter();
+  const { user, profile } = useAuth();
+
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [appointmentType, setAppointmentType] = useState("");
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("");
-  const [tz, setTz] = useState("ET");
+  const [timezone, setTimezone] = useState("ET");
+  const [appointmentType, setAppointmentType] = useState("");
+  const [name, setName] = useState(profile?.fullName ?? "");
+  const [email, setEmail] = useState(profile?.email ?? "");
+  const [phone, setPhone] = useState(profile?.phone ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    if (!time) {
-      setError("Pick a time slot to continue.");
-      return;
-    }
+    if (submitting || !time) return;
     setSubmitting(true);
+    setError(null);
     try {
-      const scheduledAt = toScheduledISO(date, time, tz);
-      await submitAppointment({
+      const id = await submitAppointment({
+        participantId: profile?.participantId ?? user?.uid ?? "",
+        participantName: name,
+        appointmentType,
+        scheduledDate: date,
+        scheduledTime: time,
+        timezone,
+        mode: "Video",
+        contactEmail: email,
+        contactPhone: phone,
+        contactName: name,
+      });
+      bookFlow.set({
+        appointmentId: id,
+        appointmentType,
+        scheduledDate: date,
+        scheduledTime: time,
+        timezone,
         contactName: name,
         contactEmail: email,
-        contactPhone: phone || undefined,
-        appointmentType,
-        scheduledAt,
-        timezone: tz,
+        mode: "Video",
+        reference: `CA-APT-${date.replace(/-/g, "")}-${id.slice(-6).toUpperCase()}`,
       });
-      if (typeof window !== "undefined") {
-        try {
-          window.sessionStorage.setItem(
-            "cah:book:result",
-            JSON.stringify({
-              name,
-              email,
-              appointmentType,
-              date,
-              time,
-              tz,
-            })
-          );
-        } catch {
-          /* ignore */
-        }
-      }
       router.push("/book/confirmation");
     } catch (err) {
       console.error(err);
-      setError("We couldn't book your appointment. Please try again.");
-    } finally {
+      setError(
+        (err as Error)?.message ||
+          "We couldn't book your appointment. Please try again."
+      );
       setSubmitting(false);
     }
   }
@@ -142,7 +121,7 @@ export default function BookPage() {
         subtitle="Choose a time to speak with an advisor."
       />
 
-      <form className="grid gap-5" onSubmit={handleSubmit}>
+      <form className="grid gap-5" onSubmit={onSubmit}>
         <FormSection title="Your details">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Full Name" required htmlFor="b-name">
@@ -168,7 +147,7 @@ export default function BookPage() {
               <Input
                 id="b-phone"
                 type="tel"
-                value={phone}
+                value={phone ?? ""}
                 onChange={(e) => setPhone(e.target.value)}
               />
             </Field>
@@ -206,8 +185,8 @@ export default function BookPage() {
             <Field label="Time Zone" required htmlFor="b-tz">
               <Select
                 id="b-tz"
-                value={tz}
-                onChange={(e) => setTz(e.target.value)}
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
                 required
               >
                 <option value="ET">Eastern Time (ET)</option>
@@ -244,18 +223,15 @@ export default function BookPage() {
           </Field>
         </FormSection>
 
-        {error ? (
-          <p
-            role="alert"
-            className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
-          >
+        {error && (
+          <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
             {error}
-          </p>
-        ) : null}
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-3 pt-2">
           <span className="text-[13px] text-ink-subtle">
-            {time ? `Selected: ${date} at ${time} ${tz}` : "Pick a time slot to continue"}
+            {time ? `Selected: ${date} at ${time} ${timezone}` : "Pick a time slot to continue"}
           </span>
           <Button type="submit" size="lg" disabled={!time || submitting}>
             {submitting ? "Booking…" : "Confirm Appointment"}{" "}

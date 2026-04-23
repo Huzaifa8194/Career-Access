@@ -1,37 +1,34 @@
 import {
   addDoc,
-  collection,
   getDocs,
+  limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
-  doc,
-  type Timestamp,
+  type Unsubscribe,
 } from "firebase/firestore";
+import { referralsCol } from "@/lib/firebase/firestore";
+import {
+  type ReferralDoc,
+  toDateISO,
+} from "@/lib/firebase/types";
+import { doc } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/config";
+import { COLLECTIONS } from "@/lib/firebase/types";
+
+export type ReferralInput = Omit<
+  ReferralDoc,
+  "status" | "createdAt" | "updatedAt" | "linkedParticipantId" | "id"
+>;
 
 export type ReferralRow = {
   id: string;
   referrerName: string;
   organizationName: string;
   email: string;
-  applicantFirstName: string;
-  applicantLastName: string;
-  applicantEmail: string;
-  zipCode: string;
-  programInterest: string;
-  urgency: string;
-  reason: string;
-  status: string;
-  createdAt: string;
-};
-
-export type ReferralSubmit = {
-  referrerName: string;
-  organizationName: string;
-  email: string;
-  phone: string;
+  phone: string | null;
   applicantFirstName: string;
   applicantLastName: string;
   applicantEmail: string;
@@ -39,77 +36,89 @@ export type ReferralSubmit = {
   zipCode: string;
   programInterest: string;
   urgency: string;
-  reason: string;
-  permissionConfirmed: boolean;
+  reasonForReferral: string;
+  status: ReferralDoc["status"];
+  createdAtISO: string | null;
 };
 
-export async function submitReferral(
-  input: ReferralSubmit
-): Promise<{ id: string | null; live: boolean }> {
-  const ref = await addDoc(collection(getFirebaseDb(), "referrals"), {
+export async function submitReferral(input: ReferralInput): Promise<string> {
+  const docData: ReferralDoc = {
     ...input,
     status: "new",
-    source: "partner",
-    reasonForReferral: input.reason,
-    createdAt: serverTimestamp(),
-  });
-  return { id: ref.id, live: true };
+    linkedParticipantId: null,
+    createdAt: serverTimestamp() as unknown as ReferralDoc["createdAt"],
+    updatedAt: serverTimestamp() as unknown as ReferralDoc["updatedAt"],
+  };
+  const r = await addDoc(referralsCol(), docData);
+  return r.id;
 }
 
-export async function fetchReferrals(): Promise<{ rows: ReferralRow[]; live: boolean }> {
+export async function fetchReferrals(max = 200): Promise<ReferralRow[]> {
   const snap = await getDocs(
-    query(collection(getFirebaseDb(), "referrals"), orderBy("createdAt", "desc"))
+    query(referralsCol(), orderBy("createdAt", "desc"), limit(max))
   );
-  const rows = snap.docs.map((d) => {
-    const row = d.data() as {
-      referrerName: string;
-      organizationName: string;
-      email: string;
-      applicantFirstName: string;
-      applicantLastName: string;
-      applicantEmail: string;
-      zipCode: string;
-      programInterest: string;
-      urgency: string;
-      reason?: string;
-      reasonForReferral?: string;
-      status?: string;
-      createdAt?: Timestamp | Date | string;
-    };
-    const createdAt =
-      row.createdAt instanceof Date
-        ? row.createdAt
-        : typeof row.createdAt === "string"
-          ? new Date(row.createdAt)
-          : row.createdAt && "toDate" in row.createdAt
-            ? row.createdAt.toDate()
-            : null;
+  return snap.docs.map((d) => {
+    const data = d.data() as ReferralDoc;
     return {
       id: d.id,
-      referrerName: row.referrerName,
-      organizationName: row.organizationName,
-      email: row.email,
-      applicantFirstName: row.applicantFirstName,
-      applicantLastName: row.applicantLastName,
-      applicantEmail: row.applicantEmail,
-      zipCode: row.zipCode,
-      programInterest: row.programInterest,
-      urgency: row.urgency,
-      reason: row.reasonForReferral ?? row.reason ?? "",
-      status: row.status ?? "new",
-      createdAt: createdAt ? createdAt.toISOString() : new Date().toISOString(),
+      referrerName: data.referrerName,
+      organizationName: data.organizationName,
+      email: data.email,
+      phone: data.phone ?? null,
+      applicantFirstName: data.applicantFirstName,
+      applicantLastName: data.applicantLastName,
+      applicantEmail: data.applicantEmail,
+      applicantPhone: data.applicantPhone,
+      zipCode: data.zipCode,
+      programInterest: data.programInterest,
+      urgency: data.urgency,
+      reasonForReferral: data.reasonForReferral,
+      status: data.status,
+      createdAtISO: toDateISO(data.createdAt),
     };
   });
-  return {
-    rows,
-    live: true,
-  };
 }
 
-export async function mutateReferralStatus(id: string, status: string) {
-  await updateDoc(doc(getFirebaseDb(), "referrals", id), {
+export function subscribeReferrals(
+  cb: (rows: ReferralRow[]) => void,
+  max = 200
+): Unsubscribe {
+  return onSnapshot(
+    query(referralsCol(), orderBy("createdAt", "desc"), limit(max)),
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data() as ReferralDoc;
+          return {
+            id: d.id,
+            referrerName: data.referrerName,
+            organizationName: data.organizationName,
+            email: data.email,
+            phone: data.phone ?? null,
+            applicantFirstName: data.applicantFirstName,
+            applicantLastName: data.applicantLastName,
+            applicantEmail: data.applicantEmail,
+            applicantPhone: data.applicantPhone,
+            zipCode: data.zipCode,
+            programInterest: data.programInterest,
+            urgency: data.urgency,
+            reasonForReferral: data.reasonForReferral,
+            status: data.status,
+            createdAtISO: toDateISO(data.createdAt),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
+export async function updateReferralStatus(
+  id: string,
+  status: ReferralDoc["status"]
+): Promise<void> {
+  await updateDoc(doc(getFirebaseDb(), COLLECTIONS.referrals, id), {
     status,
     updatedAt: serverTimestamp(),
   });
-  return { error: null, live: true };
 }

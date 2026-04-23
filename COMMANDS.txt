@@ -1,404 +1,155 @@
-CAREER ACCESS HUB — Full Windows / PowerShell Command Reference
-================================================================
+CAREER ACCESS — Windows PowerShell commands
+============================================
 
-This project is a Next.js 16 + React 19 + Tailwind v4 app wired to:
-  - Firebase Authentication (email/password)
-  - Firebase Data Connect (PostgreSQL via Cloud SQL)
-  - Firebase Storage (participant documents)
+Prerequisites
+-------------
+- Node.js 20 LTS recommended, npm installed.
+- (Optional for emulators & deploy) Firebase CLI:
 
-QUICK RECONNECT AFTER DATA CONNECT CHANGES (Windows / PowerShell)
-==================================================================
+   npm install -g firebase-tools
 
-Run these from project root:
 
-  npx firebase-tools dataconnect:sql:migrate
-  npx firebase-tools deploy --only dataconnect
-  npx firebase-tools dataconnect:sdk:generate
+First-time setup
+----------------
+1) Install web app dependencies:
 
-FIRESTORE MIGRATION COMMANDS (WINDOWS / POWERSHELL)
-===================================================
+   npm install
 
-Commands run in this migration pass:
+2) (Optional) Install Cloud Functions dependencies:
 
-  npm install && npm run lint
-  npm install; npm run lint
+   cd functions
+   npm install
+   cd ..
 
-Notes:
-  - In Windows PowerShell 5, `&&` is invalid. Use `;` to run sequential commands.
-  - If lint fails, run it separately to inspect issues:
-      npm run lint
 
-Recommended Firebase Firestore setup commands:
+Environment variables (.env.local)
+----------------------------------
+Create a file named `.env.local` at the project root with:
 
-  npx -y firebase-tools@latest --version
-  npx -y firebase-tools@latest login
-  npx -y firebase-tools@latest use
-  npx -y firebase-tools@latest deploy --only firestore:rules
-  npx -y firebase-tools@latest deploy --only storage
-  npx -y firebase-tools@latest emulators:start --only auth,firestore,storage
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDI5oB9Fdae7qBIRfuAKZwIZbQ3sUKg88U
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=careeraccesshub-d3d27.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=careeraccesshub-d3d27
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=careeraccesshub-d3d27.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=969717593106
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:969717593106:web:f37927b0cfafbf22bc94cb
 
-If migrate fails with:
-  "Caller does not have required permission ... sqladmin.googleapis.com"
+To also enable local emulators during dev, append:
 
-Fix in Google Cloud IAM for project `careeraccesshub-d3d27`:
-  - Grant your user/service account:
-      roles/serviceusage.serviceUsageConsumer
-    (or custom permission `serviceusage.services.use`)
-  - Wait 2-5 minutes for IAM propagation
-  - Re-run the 3 commands above
+   NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true
+   NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=localhost
 
-If migrate fails with:
-  "Cannot setup Postgres SQL permissions ... database 'careeraccessdb' does not exist"
 
-Create the database in your Cloud SQL instance first:
+Run the dev server
+------------------
+3) Start the Next.js dev server (http://localhost:3000):
 
-  gcloud sql databases create careeraccessdb --project=careeraccesshub-d3d27 --instance=careeraccesshub-d3d27-instance
+   npm run dev
 
-Then retry:
 
-  npx firebase-tools dataconnect:sql:migrate
-  npx firebase-tools deploy --only dataconnect
-  npx firebase-tools dataconnect:sdk:generate
+Firebase login & project
+------------------------
+4) Log in to Firebase (one time):
 
-Everything below assumes you're running **PowerShell** from the project root
-(where package.json lives).  Every command here is safe to re-run if it fails
-half-way through — just start again at the step you were on.
+   firebase login
 
+5) Point the CLI to the project (already set in .firebaserc):
 
-================================================================================
-SECTION A — One-time machine setup
-================================================================================
+   firebase use careeraccesshub-d3d27
 
-A1. Install Node.js 20 LTS (Node 18.18+ also works)
-    Download:  https://nodejs.org
-    Verify:
-        node -v
-        npm -v
 
-A2. Install the Firebase CLI globally:
+Deploy Firestore & Storage rules
+--------------------------------
+6) Deploy rules + indexes:
 
-    npm install -g firebase-tools
+   firebase deploy --only firestore:rules
+   firebase deploy --only firestore:indexes
+   firebase deploy --only storage
 
-    Then close + reopen PowerShell if it doesn't show up on PATH.
-    Verify:
-        firebase --version
 
-A3. Log in and select the project:
+Deploy Cloud Functions
+----------------------
+7) Build and deploy functions:
 
-    firebase login
-    firebase use careeraccesshub-d3d27
+   cd functions
+   npm run build
+   cd ..
+   firebase deploy --only functions
 
 
-================================================================================
-SECTION B — Install dependencies and sanity check the build
-================================================================================
+Run local emulators (recommended while developing)
+--------------------------------------------------
+8) Start Auth, Firestore, Storage, Functions emulators:
 
-B1. From the project root:
+   firebase emulators:start
 
-    npm install
+   Emulator UI:      http://localhost:4000
+   Firestore port:   8080
+   Auth port:        9099
+   Storage port:     9199
+   Functions port:   5001
 
-B2. First build with the stub SDK (confirms the app compiles before any
-    Firebase side-effects):
+   Keep `NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true` in `.env.local` so the
+   web app connects to the emulators while `npm run dev` is running.
 
-    npm run build
 
-If this fails, see SECTION K — Recovery.
+Bootstrap an admin user
+-----------------------
+9) After you register an account at /portal/sign-up:
 
+   a. Open the Firebase console -> Firestore -> users collection.
+   b. Find your uid document and set   role: "admin"
+      (Or use setUserRole callable function once another admin exists.)
 
-================================================================================
-SECTION C — Enable backing services in the Firebase console
-================================================================================
 
-Open https://console.firebase.google.com/project/careeraccesshub-d3d27 and enable:
+Routes to visit (after sign-in)
+-------------------------------
+Public / flows:
+   /                     Home
+   /apply                Eligibility screener  -> /apply/intake -> /apply/confirmation
+   /refer                Referral form
+   /book                 Book an advising call
 
-  1. Build → Authentication → Sign-in method → Email/Password (Enable)
-  2. Build → Storage → Get started (default rules are overwritten by our
-     storage.rules on deploy)
-  3. Build → Data Connect → Get started
-       - Accept Cloud SQL provisioning.  Firebase will create a PostgreSQL
-         instance for you (free tier OK for dev).
-       - Region:  us-central1  (matches dataconnect/dataconnect.yaml).
-       - Instance id:  careeraccesshub-d3d27-instance  (matches dataconnect.yaml)
-       - Database:     careeraccessdb           (matches dataconnect.yaml)
-       If you pick different names, update dataconnect/dataconnect.yaml BEFORE
-       deploying.
-
-
-================================================================================
-SECTION D — Deploy the schema + connector to Firebase Data Connect
-================================================================================
-
-D1. Dry-run the schema compile (catches GQL errors locally):
-
-    firebase dataconnect:sql:diff
-
-    Review the SQL diff.  First run will print the full CREATE TABLE script.
-
-D2. Apply the schema to the Cloud SQL database:
-
-    firebase dataconnect:sql:migrate
-
-    - Answer "y" when asked to execute the migration.
-    - If migration fails because the instance is still provisioning, wait
-      5-10 minutes and try again.
-
-D3. Deploy the whole Data Connect service (schema + connector):
-
-    firebase deploy --only dataconnect
-
-    This deploys:
-      dataconnect/schema/schema.gql        → PostgreSQL tables
-      dataconnect/connector/queries.gql    → GraphQL queries
-      dataconnect/connector/mutations.gql  → GraphQL mutations
-
-
-================================================================================
-SECTION E — Generate the typed TypeScript SDK
-================================================================================
-
-The local stub at dataconnect-generated/js/career-access-connector is replaced
-by the real, typed SDK:
-
-    firebase dataconnect:sdk:generate
-
-Commit the regenerated contents (they ship with the app):
-
-    git add dataconnect-generated
-    git commit -m "chore: regenerate DC SDK"
-
-Re-run this whenever you edit anything under dataconnect/.
-
-
-================================================================================
-SECTION F — Deploy storage security rules
-================================================================================
-
-    firebase deploy --only storage
-
-
-================================================================================
-SECTION G — Run the app in production-mode against live Firebase
-================================================================================
-
-G1. Production build (after SDK generation):
-
-    npm run build
-
-G2. Start the local production server:
-
-    npm run start
-
-    Visit http://localhost:3000
-
-
-================================================================================
-SECTION H — Run EVERYTHING locally with emulators (recommended for dev)
-================================================================================
-
-Terminal 1 — emulator suite:
-
-    firebase emulators:start
-
-    Emulator UI:     http://localhost:4000
-    Auth:            http://localhost:9099
-    Data Connect:    http://localhost:9399
-    Storage:         http://localhost:9199
-
-Terminal 2 — point the Next.js app at the emulators and start dev:
-
-    copy .env.example .env.local
-    notepad .env.local
-
-    Set:
-        NEXT_PUBLIC_USE_DC_EMULATOR=1
-    Save and close.
-
-    npm run dev
-
-    Open http://localhost:3000
-
-
-================================================================================
-SECTION I — Seed an admin / advisor user
-================================================================================
-
-All new sign-ups default to role="participant".  To promote someone to admin
-or advisor AFTER they have signed up at /portal/sign-up:
-
-Option 1 — via Firebase Console:
-    https://console.firebase.google.com/project/careeraccesshub-d3d27/dataconnect
-    → Data tab → user → find the row with the person's email → set role to
-      "admin" or "advisor" → Save.
-
-Option 2 — via gql-cli one-off (requires firebase-tools ≥ 13.x):
-
-    firebase dataconnect:execute `
-      "mutation Promote { user_update(key: { id: \"<UID_FROM_AUTH>\" }, data: { role: \"admin\" }) }"
-
-Replace <UID_FROM_AUTH> with the uid shown under Authentication → Users.
-
-
-================================================================================
-SECTION J — Everyday commands (quick reference)
-================================================================================
-
-  npm run dev                              Start Next.js dev server
-  npm run build                            Production build
-  npm run start                            Run production server locally
-  npm run lint                             ESLint sweep
-  npm run dataconnect:generate             Regenerate the typed DC SDK
-  npm run dataconnect:watch                Regenerate on every DC edit
-  npm run dataconnect:deploy               Deploy schema + connector
-  npm run emulators                        Start full emulator suite
-  firebase deploy --only dataconnect       Same as dataconnect:deploy
-  firebase deploy --only storage           Push storage.rules
-  firebase deploy                          Full project deploy
-
-
-================================================================================
-SECTION K — Recovery — if something goes wrong
-================================================================================
-
-K1. Wipe and reinstall node_modules:
-
-    Remove-Item -Recurse -Force node_modules
-    Remove-Item package-lock.json
-    npm install
-
-K2. Reset the generated SDK back to the stub (before first dataconnect deploy):
-
-    git checkout -- dataconnect-generated
-
-K3. Force a clean Next.js build:
-
-    Remove-Item -Recurse -Force .next
-    npm run build
-
-K4. Reset the emulator data store:
-
-    Remove-Item -Recurse -Force .firebase, emulator-data -ErrorAction SilentlyContinue
-    firebase emulators:start --import=./emulator-data --export-on-exit
-
-K5. Re-authenticate with Firebase:
-
-    firebase logout
-    firebase login
-
-K6. Schema push failed with "relation already exists":
-
-    firebase dataconnect:sql:migrate --force
-
-
-================================================================================
-SECTION L — Routes
-================================================================================
-
-Public site:
-   /                                    Home
-   /how-it-works                        How it works
-   /services                            Services
-   /partners                            For partners
-   /get-started                         Get started
-   /contact                             Contact
-
-Public flows:
-   /apply                               Eligibility screener
-   /apply/intake                        Full intake form
-   /apply/confirmation                  Application received
-   /refer                               Referral form
-   /refer/confirmation                  Referral submitted
-   /book                                Book an advising call
-   /book/confirmation                   Appointment confirmed
-
-Portal (Firebase Auth required):
+Portal:
    /portal                              Sign in
    /portal/sign-up                      Create account
-
    /portal/participant                  Participant dashboard
-   /portal/participant/appointments     My appointments
-   /portal/participant/documents        My documents + uploader
-   /portal/participant/messages         Message advisor
-
-   /portal/advisor                      Advisor pipeline (kanban)
+   /portal/participant/appointments     Appointments
+   /portal/participant/documents        Documents
+   /portal/participant/messages         Messages
+   /portal/advisor                      Advisor pipeline
    /portal/advisor/participants         All participants table
    /portal/advisor/participants/<id>    Participant profile
    /portal/advisor/inbox                Advisor inbox
-
-   /portal/admin                        Admin overview
-   /portal/admin/participants           Applicants by status
-   /portal/admin/participants/<id>      Applicant profile
-   /portal/admin/partners               Partner + referral console  (LIVE)
-   /portal/admin/tasks                  Internal admin tasks
-
-
-================================================================================
-SECTION M — File map (where everything lives)
-================================================================================
-
-  dataconnect/schema/schema.gql         Data Connect schema (PostgreSQL/GraphQL)
-  dataconnect/connector/queries.gql     @auth-protected queries
-  dataconnect/connector/mutations.gql   @auth-protected mutations
-  dataconnect-generated/                Generated SDK (swap stub → real on deploy)
-  storage.rules                         Firebase Storage security rules
-  firebase.json                         Firebase project config
-  .firebaserc                           Firebase project binding
-
-  lib/firebase/config.ts                Firebase app + Auth + Storage singletons
-  lib/firebase/auth.tsx                 AuthProvider + useAuth()
-  lib/firebase/dataconnect.ts           getDC() + callDC() wrapper
-  lib/firebase/storage.ts               uploadFile() / removeFile()
-  lib/pathway.ts                        Deterministic pathway routing
-
-  lib/services/participants.ts          Participant + application writes/reads
-  lib/services/referrals.ts             Referral writes/reads + status updates
-  lib/services/appointments.ts          Booking create + list
-  lib/services/documents.ts             Upload + list + status updates
-  lib/services/messaging.ts             Send messages + create notes
-  lib/services/tasks.ts                 Task CRUD per participant
-  lib/services/admin.ts                 Admin aggregate snapshot
-
-  components/providers/Providers.tsx    AuthProvider + TanStack Query root
-  components/portal/RequireAuth.tsx     Role-aware route guard
+   /portal/admin                        Admin Overview
+   /portal/admin/participants           Applicants (filters, search, CSV export)
+   /portal/admin/participants/<id>      Applicant profile (admin)
+   /portal/admin/partners               Partner referrals
+   /portal/admin/tasks                  Operational tasks
 
 
-================================================================================
-SECTION N — Troubleshooting
-================================================================================
+Production build
+----------------
+10) Build and run production server:
 
-N1. "FirebaseError: Missing or insufficient permissions"
-    → The Data Connect auth rules require a signed-in user for USER-level
-      mutations.  Make sure you signed in via /portal before hitting the
-      portal pages.
-
-N2. "TypeError: Cannot read property '__stub' of undefined"
-    → The generated SDK import broke.  Re-run:
-          firebase dataconnect:sdk:generate
-
-N3. Intake form submits but the participant dashboard shows demo data
-    → isDataConnectReady is still false — either you never deployed the
-      schema or the SDK isn't regenerated.  Re-run Section D + Section E.
-
-N4. Storage upload fails with "storage/unauthorized"
-    → Rerun:  firebase deploy --only storage
-      and make sure the user is signed in.
-
-N5. Emulator UI is stuck on "Waiting for Data Connect…"
-    → The Data Connect emulator downloads a large binary on first launch.
-      Leave it running for 5-10 minutes; subsequent starts are fast.
+    npm run build
+    npm run start
 
 
-================================================================================
-SECTION O — Git hygiene during development
-================================================================================
+Troubleshooting
+---------------
+- Firebase rules deploy fails with "Project not found":
+     firebase use --add
+  and choose careeraccesshub-d3d27.
 
-  git status
-  git add .
-  git commit -m "feat: wire referrals into admin partners console"
-  git push origin main
+- "Missing or insufficient permissions" at runtime:
+  Confirm your `users/<uid>` document exists and that `role` is set to
+  participant | advisor | admin.
 
-Branches you'll want to avoid committing:
-  .next/                (auto-generated build output)
-  node_modules/
-  .firebase/            (local emulator state)
-  emulator-data/        (exported emulator data)
-  .env.local            (secrets)
+- Functions build fails on deploy:
+     cd functions
+     npm install
+     npm run build
+     cd ..
+
+- Want a fresh emulator DB each run:
+     firebase emulators:start --import=./emulator-data --export-on-exit

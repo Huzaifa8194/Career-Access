@@ -20,7 +20,7 @@ import {
   ChevronDown,
   Compass,
 } from "@/components/icons";
-import { useOptionalAuth } from "@/lib/firebase/auth";
+import { useAuth } from "@/lib/firebase/auth";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
 
@@ -122,41 +122,31 @@ export function PortalShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const auth = useOptionalAuth();
+  const { user: authUser, profile, signOut } = useAuth();
   const nav = roleNav[role];
   const fallback = userByRole[role];
-  const initialsOf = (name: string) =>
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((n) => n[0]?.toUpperCase() ?? "")
-      .join("") || fallback.initials;
-  const user = auth?.user
-    ? {
-        name: auth.user.fullName || fallback.name,
-        meta:
-          auth.user.role === role
-            ? `${role.charAt(0).toUpperCase() + role.slice(1)} · ${auth.user.email}`
-            : fallback.meta,
-        initials: initialsOf(auth.user.fullName || fallback.name),
-      }
-    : fallback;
+  const displayName =
+    profile?.fullName || authUser?.displayName || authUser?.email || fallback.name;
+  const initials = displayName
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || fallback.initials;
+  const meta = profile?.role
+    ? `${profile.role[0].toUpperCase()}${profile.role.slice(1)}${
+        authUser?.email ? ` · ${authUser.email}` : ""
+      }`
+    : fallback.meta;
+  const user = { name: displayName, initials, meta };
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
-    if (!auth) {
-      router.push("/");
-      return;
-    }
     try {
-      setSigningOut(true);
-      await auth.signOut();
-      router.push("/portal");
-    } finally {
-      setSigningOut(false);
-    }
+      await signOut();
+    } catch {}
+    router.replace("/portal");
   }
 
   return (
@@ -242,15 +232,13 @@ export function PortalShell({
               </li>
               <li>
                 <button
-                  type="button"
                   onClick={handleSignOut}
-                  disabled={signingOut}
-                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-60"
+                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] text-ink-muted hover:bg-canvas hover:text-ink text-left"
                 >
                   <span className="text-ink-subtle">
                     <LogOut size={16} />
                   </span>
-                  {signingOut ? "Signing out…" : "Sign out"}
+                  Sign out
                 </button>
               </li>
             </ul>

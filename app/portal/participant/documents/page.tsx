@@ -1,129 +1,67 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
-import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Upload, FileText, Check } from "@/components/icons";
-import { participantSummary } from "@/lib/data";
+import { RoleGuard } from "@/components/auth/RoleGuard";
+import { useParticipantContext } from "@/lib/hooks/useParticipantContext";
 import {
-  fetchMyDocuments,
+  subscribeDocumentsForParticipant,
   uploadParticipantDocument,
+  deleteDocument,
   type DocumentRow,
 } from "@/lib/services/documents";
-import { fetchMyParticipant } from "@/lib/services/participants";
-
-type LocalDoc = {
-  id: string;
-  name: string;
-  uploaded: string;
-  size: string;
-  status: "Verified" | "Needed" | "In review";
-};
-
-function formatSize(bytes?: number | null) {
-  if (!bytes) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function normalizeStatus(status: string): LocalDoc["status"] {
-  const s = status.toLowerCase();
-  if (s.includes("verified")) return "Verified";
-  if (s.includes("need")) return "Needed";
-  return "In review";
-}
+import { useAuth } from "@/lib/firebase/auth";
 
 export default function DocumentsPage() {
   return (
-    <RequireAuth requiredRole="participant">
-      <Inner />
-    </RequireAuth>
+    <RoleGuard allow={["participant"]}>
+      <Documents />
+    </RoleGuard>
   );
 }
 
-function Inner() {
-  const [docs, setDocs] = useState<LocalDoc[]>([]);
-  const [participantId, setParticipantId] = useState<string | null>(null);
+function Documents() {
+  const { user } = useAuth();
+  const { participantId, loading } = useParticipantContext();
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [participant, { rows, live: docsLive }] = await Promise.all([
-        fetchMyParticipant(),
-        fetchMyDocuments(),
-      ]);
-      if (cancelled) return;
-      setParticipantId(participant?.id ?? null);
-      setLive(docsLive);
-      if (docsLive && rows.length > 0) {
-        setDocs(
-          rows.map((r: DocumentRow) => ({
-            id: r.id,
-            name: r.fileName,
-            uploaded: r.createdAt
-              ? new Date(r.createdAt).toLocaleDateString()
-              : "—",
-            size: formatSize(r.sizeBytes ?? undefined),
-            status: normalizeStatus(r.status ?? ""),
-          }))
-        );
-      } else {
-        setDocs(
-          participantSummary.documents.map((d, i) => ({
-            id: `demo_${i}`,
-            name: d.name,
-            uploaded: d.uploaded,
-            size: d.size,
-            status: normalizeStatus(d.status ?? ""),
-          }))
-        );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!participantId) return;
+    const unsub = subscribeDocumentsForParticipant(participantId, setDocs);
+    return () => unsub();
+  }, [participantId]);
 
-  async function handleAdd(file: File | null, replaceId?: string) {
-    if (!file) return;
-    setError(null);
-    if (!participantId) {
-      setError(
-        "We couldn't find your application. Please complete intake first."
-      );
-      return;
-    }
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !participantId || !user) return;
     setUploading(true);
+    setError(null);
     try {
-      const { id, stored } = await uploadParticipantDocument({
-        file,
-        participantId,
-        status: "in-review",
-      });
-      const entry: LocalDoc = {
-        id: id ?? `local_${Date.now()}`,
-        name: stored.fileName,
-        uploaded: "Just now",
-        size: formatSize(stored.sizeBytes),
-        status: "In review",
-      };
-      setDocs((prev) => {
-        if (replaceId) {
-          return prev.map((d) => (d.id === replaceId ? entry : d));
-        }
-        return [entry, ...prev];
-      });
+      await uploadParticipantDocument(participantId, file, user.uid);
     } catch (err) {
-      console.error(err);
-      setError("Upload failed. Check the file size and type, then try again.");
+      setError(
+        (err as Error)?.message ??
+          "Upload failed. Try again or contact your advisor."
+      );
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function onDelete(row: DocumentRow) {
+    if (!confirm(`Remove ${row.fileName}?`)) return;
+    try {
+      await deleteDocument(row.id, row.storagePath);
+    } catch (err) {
+      setError((err as Error)?.message ?? "Could not remove file.");
     }
   }
 
@@ -131,75 +69,89 @@ function Inner() {
     <PortalShell
       role="participant"
       title="Documents"
-      subtitle={
-        live
-          ? "Upload only what your advisor requests. We'll verify and follow up."
-          : "Upload only what your advisor requests. Showing sample documents until your account is live."
-      }
+      subtitle="Upload only what your advisor requests. We'll verify and follow up."
       actions={
-        <label
-          className={[
-            "inline-flex items-center justify-center gap-2 h-9 px-3 text-sm rounded-md font-medium cursor-pointer",
-            "bg-primary text-white hover:bg-primary-700",
-            uploading ? "opacity-60 pointer-events-none" : "",
-          ].join(" ")}
-        >
-          <Upload size={14} />
-          {uploading ? "Uploading…" : "Add a document"}
+        <>
           <input
+            ref={fileInput}
             type="file"
             className="sr-only"
-            accept="application/pdf,image/*"
-            onChange={(e) => handleAdd(e.target.files?.[0] ?? null)}
+            onChange={onFileChange}
           />
-        </label>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => fileInput.current?.click()}
+            disabled={uploading || !participantId}
+          >
+            <Upload size={14} />
+            {uploading ? "Uploading…" : "Add a document"}
+          </Button>
+        </>
       }
     >
-      {error ? (
-        <p
-          role="alert"
-          className="mb-4 rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
-        >
-          {error}
-        </p>
-      ) : null}
-
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card>
           <CardHeader
             title="Your documents"
-            description="Verified files are visible to your advisor only"
+            description="Files stored securely in Firebase Storage"
             action={
               <Badge tone="muted">
-                {docs.filter((d) => d.status === "Verified").length} verified
+                {docs.filter((d) => d.status === "verified").length} verified
               </Badge>
             }
           />
           <CardBody className="grid gap-2">
+            {loading && (
+              <div className="text-[13px] text-ink-muted">Loading…</div>
+            )}
+            {!loading && !participantId && (
+              <div className="text-[13px] text-ink-muted">
+                Complete your application to start uploading documents.
+              </div>
+            )}
+            {!loading && participantId && docs.length === 0 && (
+              <div className="text-[13px] text-ink-muted py-3">
+                No documents yet. Add one with the button above.
+              </div>
+            )}
+            {error && (
+              <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
+                {error}
+              </div>
+            )}
             {docs.map((d) => (
               <div
                 key={d.id}
                 className="flex items-center justify-between gap-3 border border-line rounded-md p-3"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <a
+                  href={d.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 min-w-0 group"
+                >
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-canvas text-ink-muted">
                     <FileText size={16} />
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[14px] font-medium truncate">
-                      {d.name}
+                    <div className="text-[14px] font-medium truncate group-hover:text-primary">
+                      {d.fileName}
                     </div>
                     <div className="text-[12px] text-ink-subtle">
-                      {d.uploaded} · {d.size}
+                      {formatSize(d.size)} ·{" "}
+                      {d.createdAtISO
+                        ? new Date(d.createdAtISO).toLocaleDateString()
+                        : "—"}
                     </div>
                   </div>
-                </div>
+                </a>
                 <div className="flex items-center gap-3">
                   <Badge
                     tone={
-                      d.status === "Verified"
+                      d.status === "verified"
                         ? "success"
-                        : d.status === "Needed"
+                        : d.status === "needed" || d.status === "rejected"
                         ? "warn"
                         : "info"
                     }
@@ -207,19 +159,12 @@ function Inner() {
                   >
                     {d.status}
                   </Badge>
-                  {d.status !== "Verified" && (
-                    <label className="text-[13px] font-medium text-primary cursor-pointer">
-                      Upload
-                      <input
-                        type="file"
-                        className="sr-only"
-                        accept="application/pdf,image/*"
-                        onChange={(e) =>
-                          handleAdd(e.target.files?.[0] ?? null, d.id)
-                        }
-                      />
-                    </label>
-                  )}
+                  <button
+                    onClick={() => onDelete(d)}
+                    className="text-[13px] font-medium text-ink-muted hover:text-danger"
+                  >
+                    Remove
+                  </button>
                 </div>
               </div>
             ))}
@@ -252,12 +197,24 @@ function Inner() {
               ))}
             </ul>
             <p className="text-[13px] text-ink-subtle border-t border-line pt-3 mt-2">
-              Files are stored securely. Only your assigned advisor can view
-              them.
+              Files are stored securely. Only your assigned advisor and admin
+              can view them.
             </p>
           </CardBody>
         </Card>
       </div>
     </PortalShell>
   );
+}
+
+function formatSize(bytes: number | null): string {
+  if (!bytes) return "—";
+  const units = ["B", "KB", "MB", "GB"];
+  let s = bytes;
+  let i = 0;
+  while (s >= 1024 && i < units.length - 1) {
+    s /= 1024;
+    i++;
+  }
+  return `${s.toFixed(s < 10 ? 1 : 0)} ${units[i]}`;
 }

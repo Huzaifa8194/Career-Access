@@ -1,95 +1,140 @@
 import {
   addDoc,
-  collection,
+  deleteDoc,
   doc,
   getDocs,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
-  type Timestamp,
+  type Unsubscribe,
 } from "firebase/firestore";
-import { getFirebaseDb } from "@/lib/firebase/config";
-import { uploadFile } from "@/lib/firebase/storage";
-import { fetchMyParticipant } from "./participants";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref as storageRef,
+  uploadBytes,
+} from "firebase/storage";
+import { documentsCol } from "@/lib/firebase/firestore";
+import { getFirebaseDb, getFirebaseStorage } from "@/lib/firebase/config";
+import {
+  COLLECTIONS,
+  type DocumentDoc,
+  type DocumentStatus,
+  toDateISO,
+} from "@/lib/firebase/types";
 
 export type DocumentRow = {
   id: string;
+  participantId: string;
   fileName: string;
   fileUrl: string;
-  sizeBytes?: number | null;
-  status: string;
-  createdAt: string;
+  storagePath: string;
+  size: number | null;
+  status: DocumentStatus;
+  uploadedBy: string;
+  createdAtISO: string | null;
 };
 
-export async function uploadParticipantDocument({
-  file,
-  participantId,
-  status = "in-review",
-}: {
-  file: File;
-  participantId: string;
-  status?: string;
-}) {
-  const stored = await uploadFile(file, `participants/${participantId}`);
-  const ref = await addDoc(collection(getFirebaseDb(), "documents"), {
-    participantId,
-    fileName: stored.fileName,
-    fileUrl: stored.fileUrl,
-    storagePath: stored.storagePath,
-    sizeBytes: stored.sizeBytes,
-    status,
-    createdAt: serverTimestamp(),
-  });
-  return { id: ref.id, stored, live: true };
-}
-
-export async function fetchMyDocuments(): Promise<{
-  rows: DocumentRow[];
-  live: boolean;
-}> {
-  const participant = await fetchMyParticipant();
-  if (!participant?._live) return { rows: [], live: false };
-  const snap = await getDocs(
-    query(
-      collection(getFirebaseDb(), "documents"),
-      where("participantId", "==", participant.id),
-      orderBy("createdAt", "desc")
-    )
-  );
+function mapDoc(id: string, data: DocumentDoc): DocumentRow {
   return {
-    rows: snap.docs.map((d) => {
-      const row = d.data() as {
-        fileName: string;
-        fileUrl: string;
-        sizeBytes?: number | null;
-        status?: string;
-        createdAt?: Timestamp | Date | string;
-      };
-      const createdAt =
-        row.createdAt instanceof Date
-          ? row.createdAt.toISOString()
-          : typeof row.createdAt === "string"
-            ? row.createdAt
-            : row.createdAt?.toDate().toISOString() ?? new Date().toISOString();
-      return {
-        id: d.id,
-        fileName: row.fileName,
-        fileUrl: row.fileUrl,
-        sizeBytes: row.sizeBytes ?? null,
-        status: row.status ?? "in-review",
-        createdAt,
-      };
-    }),
-    live: true,
+    id,
+    participantId: data.participantId,
+    fileName: data.fileName,
+    fileUrl: data.fileUrl,
+    storagePath: data.storagePath,
+    size: data.size ?? null,
+    status: (data.status ?? "in-review") as DocumentStatus,
+    uploadedBy: data.uploadedBy,
+    createdAtISO: toDateISO(data.createdAt),
   };
 }
 
-export async function mutateDocumentStatus(id: string, status: string) {
-  await updateDoc(doc(getFirebaseDb(), "documents", id), {
-    status,
-    updatedAt: serverTimestamp(),
-  });
-  return { error: null, live: true };
+export async function fetchDocumentsForParticipant(
+  participantId: string
+): Promise<DocumentRow[]> {
+  const snap = await getDocs(
+    query(documentsCol(), where("participantId", "==", participantId))
+  );
+  const rows = snap.docs.map((d) => mapDoc(d.id, d.data() as DocumentDoc));
+  rows.sort((a, b) => (b.createdAtISO ?? "").localeCompare(a.createdAtISO ?? ""));
+  return rows;
+}
+
+export function subscribeDocumentsForParticipant(
+  participantId: string,
+  cb: (rows: DocumentRow[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(documentsCol(), where("participantId", "==", participantId)),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapDoc(d.id, d.data() as DocumentDoc));
+      rows.sort((a, b) =>
+        (b.createdAtISO ?? "").localeCompare(a.createdAtISO ?? "")
+      );
+      cb(rows);
+    },
+    () => cb([])
+  );
+}
+
+function safeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]+/g, "_");
+}
+
+export async function uploadParticipantDocument(
+  participantId: string,
+  file: File,
+  uploadedBy: string
+): Promise<DocumentRow> {
+  const storage = getFirebaseStorage();
+  const path = `participants/${participantId}/${Date.now()}_${safeFileName(file.name)}`;
+  const sref = storageRef(storage, path);
+  await uploadBytes(sref, file, { contentType: file.type || undefined });
+  const url = await getDownloadURL(sref);
+
+  const data: DocumentDoc = {
+    participantId,
+    fileName: file.name,
+    fileUrl: url,
+    storagePath: path,
+    mimeType: file.type || null,
+    size: file.size,
+    uploadedBy,
+    status: "in-review",
+    createdAt: serverTimestamp() as unknown as DocumentDoc["createdAt"],
+  };
+  const ref = await addDoc(documentsCol(), data);
+  return {
+    id: ref.id,
+    participantId,
+    fileName: file.name,
+    fileUrl: url,
+    storagePath: path,
+    size: file.size,
+    status: "in-review",
+    uploadedBy,
+    createdAtISO: new Date().toISOString(),
+  };
+}
+
+export async function updateDocumentStatus(
+  id: string,
+  status: DocumentStatus
+): Promise<void> {
+  await updateDoc(doc(getFirebaseDb(), COLLECTIONS.documents, id), { status });
+}
+
+export async function deleteDocument(
+  id: string,
+  storagePath: string
+): Promise<void> {
+  try {
+    const sref = storageRef(getFirebaseStorage(), storagePath);
+    await deleteObject(sref);
+  } catch {
+  }
+  await deleteDoc(doc(getFirebaseDb(), COLLECTIONS.documents, id));
 }

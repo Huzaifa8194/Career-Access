@@ -1,144 +1,115 @@
 import {
   addDoc,
-  collection,
+  deleteDoc,
   doc,
   getDocs,
   limit as qLimit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
-  type Timestamp,
+  type Unsubscribe,
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/config";
-import { fetchMyParticipant } from "./participants";
+import { tasksCol } from "@/lib/firebase/firestore";
+import {
+  COLLECTIONS,
+  toDateISO,
+  type TaskDoc,
+  type TaskStatus,
+} from "@/lib/firebase/types";
 
 export type TaskRow = {
   id: string;
+  participantId: string;
   title: string;
-  description?: string | null;
-  status: string; // "open" | "in-progress" | "done"
-  priority?: string | null; // "High" | "Med" | "Low"
-  dueDate?: string | null;
-  createdAt?: string | null;
-  participant?: { id: string; firstName: string; lastName: string } | null;
+  description: string | null;
+  status: TaskStatus;
+  priority: "High" | "Med" | "Low";
+  dueDate: string | null;
+  createdAtISO: string | null;
 };
 
 export type TaskSubmit = {
   participantId: string;
   title: string;
   description?: string;
-  status?: string;
-  priority?: string;
+  status?: TaskStatus;
+  priority?: "High" | "Med" | "Low";
   dueDate?: string;
 };
 
+function mapTask(id: string, data: TaskDoc): TaskRow {
+  return {
+    id,
+    participantId: data.participantId,
+    title: data.title,
+    description: data.description ?? null,
+    status: (data.status ?? "open") as TaskStatus,
+    priority: (data.priority ?? "Med") as "High" | "Med" | "Low",
+    dueDate: data.dueDate ?? null,
+    createdAtISO: toDateISO(data.createdAt),
+  };
+}
+
 export async function fetchTasksForParticipant(
-  participantId: string
-): Promise<{ rows: TaskRow[]; live: boolean }> {
+  participantId: string,
+  max = 100
+): Promise<TaskRow[]> {
   const snap = await getDocs(
     query(
-      collection(getFirebaseDb(), "tasks"),
+      tasksCol(),
       where("participantId", "==", participantId),
-      orderBy("dueDate", "asc")
+      qLimit(max)
     )
   );
-  return {
-    rows: snap.docs.map((d) => {
-      const row = d.data() as {
-        title: string;
-        description?: string | null;
-        status?: string;
-        priority?: string;
-        dueDate?: string | Timestamp | Date | null;
-        createdAt?: string | Timestamp | Date | null;
-      };
-      const dueDate =
-        row.dueDate instanceof Date
-          ? row.dueDate.toISOString()
-          : typeof row.dueDate === "string"
-            ? row.dueDate
-            : row.dueDate?.toDate().toISOString() ?? null;
-      const createdAt =
-        row.createdAt instanceof Date
-          ? row.createdAt.toISOString()
-          : typeof row.createdAt === "string"
-            ? row.createdAt
-            : row.createdAt?.toDate().toISOString() ?? null;
-      return {
-        id: d.id,
-        title: row.title,
-        description: row.description ?? null,
-        status: row.status ?? "open",
-        priority: row.priority ?? "Med",
-        dueDate,
-        createdAt,
-      };
-    }),
-    live: true,
-  };
+  return snap.docs
+    .map((d) => mapTask(d.id, d.data() as TaskDoc))
+    .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
 }
 
-export async function fetchOpenTasks(
-  limit = 25
-): Promise<{ rows: TaskRow[]; live: boolean }> {
+export function subscribeTasksForParticipant(
+  participantId: string,
+  cb: (rows: TaskRow[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(tasksCol(), where("participantId", "==", participantId)),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapTask(d.id, d.data() as TaskDoc));
+      rows.sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+      cb(rows);
+    },
+    () => cb([])
+  );
+}
+
+export async function fetchOpenTasks(max = 50): Promise<TaskRow[]> {
   const snap = await getDocs(
     query(
-      collection(getFirebaseDb(), "tasks"),
-      where("status", "!=", "done"),
-      orderBy("status", "asc"),
-      orderBy("dueDate", "asc"),
-      qLimit(limit)
+      tasksCol(),
+      where("status", "in", ["open", "in-progress"]),
+      qLimit(max)
     )
   );
-  return {
-    rows: snap.docs.map((d) => {
-      const row = d.data() as {
-        title: string;
-        description?: string | null;
-        status?: string;
-        priority?: string;
-        dueDate?: string | Timestamp | Date | null;
-        createdAt?: string | Timestamp | Date | null;
-      };
-      const dueDate =
-        row.dueDate instanceof Date
-          ? row.dueDate.toISOString()
-          : typeof row.dueDate === "string"
-            ? row.dueDate
-            : row.dueDate?.toDate().toISOString() ?? null;
-      const createdAt =
-        row.createdAt instanceof Date
-          ? row.createdAt.toISOString()
-          : typeof row.createdAt === "string"
-            ? row.createdAt
-            : row.createdAt?.toDate().toISOString() ?? null;
-      return {
-        id: d.id,
-        title: row.title,
-        description: row.description ?? null,
-        status: row.status ?? "open",
-        priority: row.priority ?? "Med",
-        dueDate,
-        createdAt,
-      };
-    }),
-    live: true,
-  };
+  return snap.docs
+    .map((d) => mapTask(d.id, d.data() as TaskDoc))
+    .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
 }
 
-export async function fetchMyTasks(): Promise<{
-  rows: TaskRow[];
-  live: boolean;
-}> {
-  const participant = await fetchMyParticipant();
-  if (!participant?._live) return { rows: [], live: false };
-  return fetchTasksForParticipant(participant.id);
+export function subscribeOpenTasks(cb: (rows: TaskRow[]) => void): Unsubscribe {
+  return onSnapshot(
+    query(tasksCol(), orderBy("createdAt", "desc"), qLimit(200)),
+    (snap) => {
+      cb(snap.docs.map((d) => mapTask(d.id, d.data() as TaskDoc)));
+    },
+    () => cb([])
+  );
 }
 
-export async function submitTask(input: TaskSubmit) {
-  const ref = await addDoc(collection(getFirebaseDb(), "tasks"), {
+export async function submitTask(input: TaskSubmit): Promise<string> {
+  const ref = await addDoc(tasksCol(), {
     participantId: input.participantId,
     title: input.title,
     description: input.description ?? null,
@@ -146,14 +117,21 @@ export async function submitTask(input: TaskSubmit) {
     priority: input.priority ?? "Med",
     dueDate: input.dueDate ?? null,
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
-  return { id: ref.id, live: true };
+  return ref.id;
 }
 
-export async function mutateTaskStatus(id: string, status: string) {
-  await updateDoc(doc(getFirebaseDb(), "tasks", id), {
+export async function updateTaskStatus(
+  id: string,
+  status: TaskStatus
+): Promise<void> {
+  await updateDoc(doc(getFirebaseDb(), COLLECTIONS.tasks, id), {
     status,
     updatedAt: serverTimestamp(),
   });
-  return { error: null, live: true };
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  await deleteDoc(doc(getFirebaseDb(), COLLECTIONS.tasks, id));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardBody, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,26 +10,41 @@ import {
   Phone,
   MapPin,
   FileText,
-  Check,
   Clock,
-  AlertTriangle,
   Flag,
   Plus,
   Sparkle,
 } from "@/components/icons";
+import type { ParticipantListItem } from "@/lib/services/participants";
 import {
-  type Participant,
-  type ParticipantStatus,
-  type Pathway,
-} from "@/lib/data";
-import {
-  mutateAssignAdvisor,
-  mutatePathway,
-  mutateRiskFlag,
-  mutateStatus,
+  assignAdvisor,
+  setParticipantPathway,
+  setParticipantStatus,
+  setRiskFlag,
 } from "@/lib/services/participants";
-import { createCaseNote } from "@/lib/services/messaging";
-import { fetchAdvisors, type AdvisorOption } from "@/lib/services/admin";
+import {
+  subscribeNotesForParticipant,
+  addNote,
+  type NoteRow,
+} from "@/lib/services/notes";
+import {
+  subscribeDocumentsForParticipant,
+  updateDocumentStatus,
+  type DocumentRow,
+} from "@/lib/services/documents";
+import {
+  subscribeTasksForParticipant,
+  submitTask,
+  updateTaskStatus,
+  type TaskRow,
+} from "@/lib/services/tasks";
+import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
+import { useAuth } from "@/lib/firebase/auth";
+import type {
+  ParticipantStatus,
+  Pathway,
+  DocumentStatus,
+} from "@/lib/firebase/types";
 
 const statusTone = {
   New: "info",
@@ -43,69 +58,80 @@ const statusTone = {
 const tabs = ["Overview", "Notes & history", "Documents", "Milestones"] as const;
 type Tab = (typeof tabs)[number];
 
+const allStatus: ParticipantStatus[] = [
+  "New",
+  "Screened",
+  "Intake complete",
+  "Advising",
+  "Enrolled",
+  "Inactive",
+];
+const allPathways: Pathway[] = [
+  "College + FAFSA",
+  "Short-term training",
+  "Apprenticeship",
+  "GED / HSE",
+];
+
 export function ParticipantProfile({
   participant,
   role,
 }: {
-  participant: Participant;
+  participant: ParticipantListItem;
   role: "advisor" | "admin";
 }) {
+  const { user, profile } = useAuth();
   const [tab, setTab] = useState<Tab>("Overview");
   const [status, setStatus] = useState<ParticipantStatus>(participant.status);
   const [pathway, setPathway] = useState<Pathway>(participant.pathway);
-  const [advisorOptions, setAdvisorOptions] = useState<AdvisorOption[]>([]);
-  const [advisorId, setAdvisorId] = useState<string>("");
-  const [advisorName, setAdvisorName] = useState<string>(
-    participant.assignedAdvisor ?? ""
+  const [advisorId, setAdvisorId] = useState<string>(
+    participant.assignedAdvisorId ?? ""
   );
-  const [risk, setRisk] = useState<Participant["risk"]>(participant.risk ?? "ok");
   const [saving, setSaving] = useState(false);
-  const [saveInfo, setSaveInfo] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
 
   useEffect(() => {
-    if (role !== "admin") return;
-    let cancelled = false;
-    (async () => {
-      const list = await fetchAdvisors();
-      if (!cancelled) {
-        setAdvisorOptions(list);
-        const current = list.find((a) => a.fullName === participant.assignedAdvisor);
-        if (current) setAdvisorId(current.id);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [role, participant.assignedAdvisor]);
+    return subscribeAdvisors(setAdvisors);
+  }, []);
 
-  async function handleSave() {
+  useEffect(() => {
+    setStatus(participant.status);
+    setPathway(participant.pathway);
+    setAdvisorId(participant.assignedAdvisorId ?? "");
+  }, [participant]);
+
+  async function save() {
     setSaving(true);
-    setSaveInfo(null);
-    setSaveError(null);
+    setSaved(null);
     try {
-      const ops: Promise<unknown>[] = [];
-      if (status !== participant.status) ops.push(mutateStatus(participant.id, status));
-      if (pathway !== participant.pathway) ops.push(mutatePathway(participant.id, pathway));
-      if (role === "admin" && advisorId) ops.push(mutateAssignAdvisor(participant.id, advisorId));
-      await Promise.all(ops);
-      setSaveInfo("Saved.");
-    } catch (err) {
-      console.error(err);
-      setSaveError("Couldn't save changes. Please try again.");
+      if (status !== participant.status) {
+        await setParticipantStatus(participant.id, status);
+      }
+      if (pathway !== participant.pathway) {
+        await setParticipantPathway(participant.id, pathway);
+      }
+      if ((advisorId || null) !== (participant.assignedAdvisorId ?? null)) {
+        const match = advisors.find((a) => a.id === advisorId);
+        await assignAdvisor(
+          participant.id,
+          advisorId || null,
+          match?.fullName ?? null
+        );
+      }
+      setSaved("Saved");
+    } catch (e) {
+      setSaved((e as Error)?.message ?? "Could not save");
     } finally {
       setSaving(false);
     }
   }
 
-  async function toggleRisk() {
-    const next = !risk || risk === "ok" ? "stalled" : "ok";
-    setRisk(next);
+  async function flagRisk() {
+    const next = participant.risk === "stalled" ? "ok" : "stalled";
     try {
-      await mutateRiskFlag(participant.id, next !== "ok");
-    } catch (err) {
-      console.error(err);
-    }
+      await setRiskFlag(participant.id, next);
+    } catch {}
   }
 
   return (
@@ -125,22 +151,32 @@ export function ParticipantProfile({
                 <Badge tone={statusTone[status]} dot>
                   {status}
                 </Badge>
-                {risk && risk !== "ok" && (
+                {participant.risk !== "ok" && (
                   <Badge tone="warn" dot>
-                    {risk === "inactive" ? "Inactive" : "Stalled"}
+                    {participant.risk === "inactive" ? "Inactive" : "Stalled"}
                   </Badge>
                 )}
               </div>
               <div className="mt-1 text-[13px] text-ink-subtle">
-                Applied {participant.appliedAt} · ID {participant.id} · Source{" "}
-                {participant.source}
+                Applied {participant.appliedAt || "—"} · ID {participant.id} ·
+                Source {participant.source}
               </div>
               <div className="mt-4 grid gap-2.5 sm:grid-cols-3 text-[13px]">
-                <ContactRow icon={<Mail size={14} />} value={participant.email} />
-                <ContactRow icon={<Phone size={14} />} value={participant.phone} />
+                <ContactRow
+                  icon={<Mail size={14} />}
+                  value={participant.email || "—"}
+                />
+                <ContactRow
+                  icon={<Phone size={14} />}
+                  value={participant.phone || "—"}
+                />
                 <ContactRow
                   icon={<MapPin size={14} />}
-                  value={`${participant.city}, ${participant.state} ${participant.zip}`}
+                  value={
+                    [participant.city, participant.state, participant.zip]
+                      .filter(Boolean)
+                      .join(", ") || "—"
+                  }
                 />
               </div>
             </div>
@@ -163,17 +199,33 @@ export function ParticipantProfile({
           </div>
         </Card>
 
-        {tab === "Overview" && <OverviewTab p={participant} />}
-        {tab === "Notes & history" && (
-          <NotesTab participantId={participant.id} role={role} />
+        {tab === "Overview" && (
+          <OverviewTab participant={participant} pathway={pathway} />
         )}
-        {tab === "Documents" && <DocumentsTab />}
-        {tab === "Milestones" && <MilestonesTab p={participant} />}
+        {tab === "Notes & history" && (
+          <NotesTab
+            participantId={participant.id}
+            advisorName={profile?.fullName ?? "Staff"}
+            advisorId={user?.uid ?? null}
+          />
+        )}
+        {tab === "Documents" && (
+          <DocumentsTab participantId={participant.id} />
+        )}
+        {tab === "Milestones" && (
+          <MilestonesTab
+            participantId={participant.id}
+            advisorId={user?.uid ?? null}
+          />
+        )}
       </div>
 
       <div className="grid gap-4">
         <Card>
-          <CardHeader title="Case actions" description="Update routing and assignment" />
+          <CardHeader
+            title="Case actions"
+            description="Update routing and assignment"
+          />
           <CardBody className="grid gap-4">
             <div className="grid gap-1.5">
               <label className="text-[12px] uppercase tracking-wider text-ink-subtle">
@@ -181,18 +233,11 @@ export function ParticipantProfile({
               </label>
               <Select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as ParticipantStatus)}
+                onChange={(e) =>
+                  setStatus(e.target.value as ParticipantStatus)
+                }
               >
-                {(
-                  [
-                    "New",
-                    "Screened",
-                    "Intake complete",
-                    "Advising",
-                    "Enrolled",
-                    "Inactive",
-                  ] as const
-                ).map((s) => (
+                {allStatus.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </Select>
@@ -204,25 +249,15 @@ export function ParticipantProfile({
                 </label>
                 <Select
                   value={advisorId}
-                  onChange={(e) => {
-                    setAdvisorId(e.target.value);
-                    setAdvisorName(
-                      advisorOptions.find((a) => a.id === e.target.value)?.fullName ?? ""
-                    );
-                  }}
+                  onChange={(e) => setAdvisorId(e.target.value)}
                 >
                   <option value="">— Unassigned —</option>
-                  {advisorOptions.map((a) => (
+                  {advisors.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.fullName}
                     </option>
                   ))}
                 </Select>
-                {advisorName && !advisorId ? (
-                  <p className="text-[11px] text-ink-subtle">
-                    Currently shown: {advisorName}
-                  </p>
-                ) : null}
               </div>
             )}
             <div className="grid gap-1.5">
@@ -233,52 +268,60 @@ export function ParticipantProfile({
                 value={pathway}
                 onChange={(e) => setPathway(e.target.value as Pathway)}
               >
-                <option>College + FAFSA</option>
-                <option>Short-term training</option>
-                <option>Apprenticeship</option>
-                <option>GED / HSE</option>
+                {allPathways.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
               </Select>
             </div>
             <Button
               variant="primary"
               className="w-full"
+              onClick={save}
               disabled={saving}
-              onClick={handleSave}
             >
               {saving ? "Saving…" : "Save changes"}
             </Button>
-            {saveInfo ? (
-              <p className="text-[12px] text-action-700">{saveInfo}</p>
-            ) : null}
-            {saveError ? (
-              <p className="text-[12px] text-danger">{saveError}</p>
-            ) : null}
+            {saved && (
+              <div className="text-[12px] text-ink-subtle">{saved}</div>
+            )}
           </CardBody>
           <CardFooter className="flex items-center justify-between">
             <span className="text-[12px] text-ink-subtle">
-              Last update: {participant.lastActivity}
+              Last activity: {participant.lastActivity}
             </span>
             <button
-              type="button"
-              onClick={toggleRisk}
+              onClick={flagRisk}
               className="text-[12px] font-medium text-danger inline-flex items-center gap-1"
             >
               <Flag size={12} />{" "}
-              {risk && risk !== "ok" ? "Clear flag" : "Flag at risk"}
+              {participant.risk === "stalled"
+                ? "Clear flag"
+                : "Flag at risk"}
             </button>
           </CardFooter>
         </Card>
 
-        <QuickLog participantId={participant.id} role={role} />
+        <QuickLogCard
+          participantId={participant.id}
+          advisorId={user?.uid ?? null}
+          advisorName={profile?.fullName ?? "Staff"}
+        />
 
         <Card>
           <CardHeader title="At-a-glance" />
           <CardBody className="grid gap-3 text-[13px]">
-            <Glance label="Pathway" value={pathway} />
-            <Glance label="Education" value={participant.educationLevel ?? "—"} />
+            <Glance label="Pathway" value={participant.pathway} />
+            <Glance
+              label="Education"
+              value={participant.educationLevel ?? "—"}
+            />
             <Glance
               label="Support needed"
-              value={participant.supportNeeded?.join(" · ") ?? "—"}
+              value={
+                participant.supportNeeded.length
+                  ? participant.supportNeeded.join(" · ")
+                  : "—"
+              }
             />
             <Glance
               label="Referral source"
@@ -292,33 +335,31 @@ export function ParticipantProfile({
   );
 }
 
-function QuickLog({
+function QuickLogCard({
   participantId,
-  role,
+  advisorId,
+  advisorName,
 }: {
   participantId: string;
-  role: "advisor" | "admin";
+  advisorId: string | null;
+  advisorName: string;
 }) {
-  const [kind, setKind] = useState("Phone call");
-  const [body, setBody] = useState("");
+  const [type, setType] = useState("Phone call");
+  const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
 
-  async function handleAdd() {
-    if (!body.trim()) return;
+  async function submit() {
+    if (!text.trim()) return;
     setSaving(true);
-    setStatus(null);
     try {
-      await createCaseNote({
+      await addNote({
         participantId,
-        content: body.trim(),
-        kind,
+        advisorId,
+        advisorName,
+        type,
+        text: text.trim(),
       });
-      setBody("");
-      setStatus("Added to log.");
-    } catch (err) {
-      console.error(err);
-      setStatus("Couldn't save — please try again.");
+      setText("");
     } finally {
       setSaving(false);
     }
@@ -326,12 +367,9 @@ function QuickLog({
 
   return (
     <Card>
-      <CardHeader
-        title="Quick log"
-        description={role === "admin" ? "Capture a follow-up or admin note" : "Capture a follow-up"}
-      />
+      <CardHeader title="Quick log" description="Capture a follow-up" />
       <CardBody className="grid gap-3">
-        <Select value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select value={type} onChange={(e) => setType(e.target.value)}>
           <option>Phone call</option>
           <option>Email sent</option>
           <option>In-person session</option>
@@ -340,21 +378,18 @@ function QuickLog({
         </Select>
         <Textarea
           rows={3}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
           placeholder="Brief note about the interaction…"
         />
         <Button
           variant="secondary"
           className="w-full"
-          onClick={handleAdd}
-          disabled={saving || !body.trim()}
+          onClick={submit}
+          disabled={saving || !text.trim()}
         >
-          <Plus size={14} /> {saving ? "Adding…" : "Add to log"}
+          <Plus size={14} /> {saving ? "Saving…" : "Add to log"}
         </Button>
-        {status ? (
-          <p className="text-[12px] text-ink-subtle">{status}</p>
-        ) : null}
       </CardBody>
     </Card>
   );
@@ -388,7 +423,13 @@ function Glance({ label, value }: { label: string; value: string }) {
   );
 }
 
-function OverviewTab({ p }: { p: Participant }) {
+function OverviewTab({
+  participant,
+  pathway,
+}: {
+  participant: ParticipantListItem;
+  pathway: Pathway;
+}) {
   return (
     <>
       <Card>
@@ -397,7 +438,9 @@ function OverviewTab({ p }: { p: Participant }) {
           description="Captured during intake — keep current"
         />
         <CardBody>
-          <p className="text-[15px] leading-7 text-ink">{p.goals}</p>
+          <p className="text-[15px] leading-7 text-ink">
+            {participant.goals || "No goal recorded yet."}
+          </p>
         </CardBody>
       </Card>
 
@@ -405,14 +448,22 @@ function OverviewTab({ p }: { p: Participant }) {
         <Card>
           <CardHeader title="Education + interest" />
           <CardBody className="grid gap-3 text-[14px]">
-            <Glance label="Highest level" value={p.educationLevel ?? "—"} />
-            <Glance label="Interest" value={p.pathway} />
+            <Glance
+              label="Highest level"
+              value={participant.educationLevel ?? "—"}
+            />
+            <Glance label="Interest" value={pathway} />
           </CardBody>
         </Card>
         <Card>
           <CardHeader title="Support needs" />
           <CardBody className="flex flex-wrap gap-2">
-            {(p.supportNeeded ?? []).map((s) => (
+            {participant.supportNeeded.length === 0 && (
+              <span className="text-[13px] text-ink-muted">
+                No support items indicated.
+              </span>
+            )}
+            {participant.supportNeeded.map((s) => (
               <Badge key={s} tone="primary">
                 {s}
               </Badge>
@@ -425,14 +476,14 @@ function OverviewTab({ p }: { p: Participant }) {
         <CardHeader
           title="Suggested next steps"
           description="From your case-management playbook"
-          action={<Badge tone="primary" dot>Auto-suggested</Badge>}
+          action={
+            <Badge tone="primary" dot>
+              Auto-suggested
+            </Badge>
+          }
         />
         <CardBody className="grid gap-2.5">
-          {[
-            "Confirm FAFSA documents are uploaded",
-            "Schedule a 30-minute check-in this week",
-            "Send program shortlist for review",
-          ].map((step) => (
+          {suggestedNextSteps(pathway).map((step) => (
             <label
               key={step}
               className="flex items-center gap-3 rounded-md border border-line p-3 hover:bg-canvas cursor-pointer"
@@ -450,108 +501,185 @@ function OverviewTab({ p }: { p: Participant }) {
   );
 }
 
+function suggestedNextSteps(p: Pathway): string[] {
+  switch (p) {
+    case "College + FAFSA":
+      return [
+        "Confirm FAFSA documents are uploaded",
+        "Schedule a 30-minute check-in this week",
+        "Send program shortlist for review",
+      ];
+    case "Apprenticeship":
+      return [
+        "Collect résumé and references",
+        "Review next IBEW / union test date",
+        "Practice interview prompts",
+      ];
+    case "Short-term training":
+      return [
+        "Match to training provider",
+        "Verify funding eligibility",
+        "Schedule intake at partner",
+      ];
+    case "GED / HSE":
+      return [
+        "Enroll in nearest HSE program",
+        "Arrange transportation and childcare",
+        "Plan post-HSE next step",
+      ];
+  }
+}
+
 function NotesTab({
   participantId,
-  role,
+  advisorId,
+  advisorName,
 }: {
   participantId: string;
-  role: "advisor" | "admin";
+  advisorId: string | null;
+  advisorName: string;
 }) {
-  const log = [
-    {
-      who: "Maya Robinson",
-      type: "Phone call · 12 min",
-      when: "Apr 14 · 2:30 PM",
-      body:
-        "Walked through FAFSA basics. Sent video link for Tuesday session. Confirmed contact prefers email.",
-    },
-    {
-      who: "System",
-      type: "Pathway assigned",
-      when: "Apr 10 · 9:15 AM",
-      body: "Assigned to College + FAFSA based on intake interest.",
-    },
-    {
-      who: "Maya Robinson",
-      type: "Email sent",
-      when: "Apr 10 · 9:00 AM",
-      body: "Welcome email with portal link and intro material.",
-    },
-  ];
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    return subscribeNotesForParticipant(participantId, setNotes);
+  }, [participantId]);
+
+  async function submit() {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      await addNote({ participantId, advisorId, advisorName, text });
+      setText("");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader
         title="Notes & history"
         description="Every interaction is logged here"
-        action={
-          <span className="text-[11px] uppercase tracking-wider text-ink-subtle">
-            {role === "admin" ? "Admin + advisor visible" : "Visible to you"}
-          </span>
-        }
       />
       <CardBody>
-        <p className="text-[12px] text-ink-subtle mb-3">
-          Reference ID: {participantId}
-        </p>
-        <ol className="relative pl-6">
-          <span className="absolute left-2 top-1 bottom-1 w-px bg-line" />
-          {log.map((l, i) => (
-            <li key={i} className="relative pb-6 last:pb-0">
-              <span className="absolute -left-0.5 top-1 inline-flex h-3.5 w-3.5 rounded-full bg-white border border-primary ring-2 ring-primary/15" />
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-medium text-ink">{l.who}</span>
-                <span className="text-[12px] text-ink-subtle">· {l.type}</span>
-                <span className="ml-auto text-[12px] text-ink-subtle inline-flex items-center gap-1">
-                  <Clock size={11} /> {l.when}
-                </span>
-              </div>
-              <p className="mt-1.5 text-[14px] text-ink-muted leading-6">
-                {l.body}
-              </p>
-            </li>
-          ))}
-        </ol>
+        <div className="grid gap-2 mb-5">
+          <Textarea
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Add a note…"
+          />
+          <div className="flex justify-end">
+            <Button onClick={submit} disabled={saving || !text.trim()}>
+              <Plus size={12} /> {saving ? "Saving…" : "New note"}
+            </Button>
+          </div>
+        </div>
+
+        {notes.length === 0 ? (
+          <div className="text-[13px] text-ink-muted">
+            No notes yet.
+          </div>
+        ) : (
+          <ol className="relative pl-6">
+            <span className="absolute left-2 top-1 bottom-1 w-px bg-line" />
+            {notes.map((l) => (
+              <li key={l.id} className="relative pb-6 last:pb-0">
+                <span className="absolute -left-0.5 top-1 inline-flex h-3.5 w-3.5 rounded-full bg-white border border-primary ring-2 ring-primary/15" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[13px] font-medium text-ink">
+                    {l.advisorName ?? "Staff"}
+                  </span>
+                  <span className="text-[12px] text-ink-subtle">
+                    · {l.type}
+                  </span>
+                  <span className="ml-auto text-[12px] text-ink-subtle inline-flex items-center gap-1">
+                    <Clock size={11} />{" "}
+                    {l.createdAtISO
+                      ? new Date(l.createdAtISO).toLocaleString()
+                      : "Just now"}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[14px] text-ink-muted leading-6 whitespace-pre-wrap">
+                  {l.text}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
       </CardBody>
     </Card>
   );
 }
 
-function DocumentsTab() {
-  const docs = [
-    { name: "High school transcript.pdf", uploaded: "Apr 12", status: "Verified" },
-    { name: "Photo ID.jpg", uploaded: "Apr 12", status: "Verified" },
-    { name: "FAFSA tax forms", uploaded: "—", status: "Needed" },
-    { name: "Resume.pdf", uploaded: "Apr 13", status: "In review" },
-  ];
-  const tone = {
-    Verified: "success",
-    Needed: "warn",
-    "In review": "info",
-  } as const;
+function DocumentsTab({ participantId }: { participantId: string }) {
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
+
+  useEffect(() => {
+    return subscribeDocumentsForParticipant(participantId, setDocs);
+  }, [participantId]);
+
+  async function setStatus(id: string, status: DocumentStatus) {
+    try {
+      await updateDocumentStatus(id, status);
+    } catch {}
+  }
 
   return (
     <Card>
-      <CardHeader title="Documents" description="Visible to assigned advisor only" />
+      <CardHeader
+        title="Documents"
+        description="Visible to assigned advisor and admin"
+      />
       <CardBody className="grid gap-2">
+        {docs.length === 0 && (
+          <div className="text-[13px] text-ink-muted">
+            No documents uploaded yet.
+          </div>
+        )}
         {docs.map((d) => (
           <div
-            key={d.name}
+            key={d.id}
             className="flex items-center justify-between gap-3 rounded-md border border-line p-3"
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <a
+              href={d.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 min-w-0 group"
+            >
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-canvas text-ink-muted">
                 <FileText size={16} />
               </span>
               <div className="min-w-0">
-                <div className="text-[14px] font-medium truncate">{d.name}</div>
+                <div className="text-[14px] font-medium truncate group-hover:text-primary">
+                  {d.fileName}
+                </div>
                 <div className="text-[12px] text-ink-subtle">
-                  Uploaded {d.uploaded}
+                  Uploaded{" "}
+                  {d.createdAtISO
+                    ? new Date(d.createdAtISO).toLocaleDateString()
+                    : "—"}
                 </div>
               </div>
+            </a>
+            <div className="flex items-center gap-2">
+              <Select
+                value={d.status}
+                onChange={(e) =>
+                  setStatus(d.id, e.target.value as DocumentStatus)
+                }
+                className="h-8"
+              >
+                <option value="in-review">In review</option>
+                <option value="verified">Verified</option>
+                <option value="needed">Needed</option>
+                <option value="rejected">Rejected</option>
+              </Select>
             </div>
-            <Badge tone={tone[d.status as keyof typeof tone]} dot>
-              {d.status}
-            </Badge>
           </div>
         ))}
       </CardBody>
@@ -559,74 +687,96 @@ function DocumentsTab() {
   );
 }
 
-function MilestonesTab({ p }: { p: Participant }) {
-  const milestones = [
-    { label: "Application submitted", date: p.appliedAt, done: true },
-    { label: "Eligibility confirmed", date: "Apr 9", done: true },
-    { label: "Intake complete", date: "Apr 10", done: true },
-    {
-      label: "Assigned advisor",
-      date: p.assignedAdvisor ? "Apr 10" : "—",
-      done: !!p.assignedAdvisor,
-    },
-    { label: "FAFSA / application submitted", date: "—", done: false },
-    { label: "Enrolled or placed", date: "—", done: false },
-  ];
+function MilestonesTab({
+  participantId,
+  advisorId,
+}: {
+  participantId: string;
+  advisorId: string | null;
+}) {
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    return subscribeTasksForParticipant(participantId, setTasks);
+  }, [participantId]);
+
+  async function add() {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      await submitTask({ participantId, title: title.trim() });
+      setTitle("");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const sorted = useMemo(
+    () =>
+      [...tasks].sort((a, b) =>
+        (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999")
+      ),
+    [tasks]
+  );
+  void advisorId;
+
   return (
     <Card>
       <CardHeader
-        title="Milestones"
-        description="The case journey at a glance"
-        action={
-          <Badge tone={p.risk === "inactive" ? "warn" : "primary"} dot>
-            {p.risk === "inactive" ? "Inactive" : "On track"}
-          </Badge>
-        }
+        title="Milestones & tasks"
+        description="Assign the next concrete step"
       />
-      <CardBody>
-        <ul className="grid gap-3">
-          {milestones.map((m) => (
+      <CardBody className="grid gap-3">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Add a task (e.g. Upload FAFSA forms)"
+            className="flex-1 h-10 rounded-md border border-line bg-white px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          />
+          <Button onClick={add} disabled={saving || !title.trim()}>
+            Add
+          </Button>
+        </div>
+
+        <ul className="grid gap-2">
+          {sorted.length === 0 && (
+            <li className="text-[13px] text-ink-muted">No tasks yet.</li>
+          )}
+          {sorted.map((t) => (
             <li
-              key={m.label}
+              key={t.id}
               className="flex items-center gap-3 rounded-md border border-line p-3"
             >
+              <input
+                type="checkbox"
+                checked={t.status === "done"}
+                onChange={(e) =>
+                  updateTaskStatus(
+                    t.id,
+                    e.target.checked ? "done" : "open"
+                  ).catch(() => {})
+                }
+                className="h-4 w-4 accent-primary"
+              />
               <span
-                className={[
-                  "inline-flex h-7 w-7 items-center justify-center rounded-full border",
-                  m.done
-                    ? "bg-action border-action text-white"
-                    : "bg-white border-line text-ink-subtle",
-                ].join(" ")}
+                className={`text-[14px] ${
+                  t.status === "done" ? "line-through text-ink-subtle" : "text-ink"
+                }`}
               >
-                {m.done ? (
-                  <Check size={13} />
-                ) : (
-                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                )}
+                {t.title}
               </span>
-              <span
-                className={`text-[14px] ${m.done ? "text-ink" : "text-ink-muted"}`}
-              >
-                {m.label}
-              </span>
-              <span className="ml-auto text-[12px] text-ink-subtle">{m.date}</span>
+              {t.dueDate && (
+                <span className="ml-auto text-[12px] text-ink-subtle">
+                  Due {t.dueDate}
+                </span>
+              )}
             </li>
           ))}
         </ul>
-        {p.risk === "inactive" && (
-          <div className="mt-4 rounded-md border border-warn/20 bg-warn-50 p-3 flex items-start gap-3">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-warn text-white">
-              <AlertTriangle size={14} />
-            </span>
-            <div className="text-[13px] leading-6">
-              <p className="font-medium text-ink">Inactive 21 days</p>
-              <p className="text-ink-muted">
-                Suggest a re-engagement message and update status if no
-                response in 7 days.
-              </p>
-            </div>
-          </div>
-        )}
       </CardBody>
     </Card>
   );

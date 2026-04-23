@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FlowShell,
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input, Select, Radio } from "@/components/ui/Field";
 import { Check, ArrowRight, Shield } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
-import { saveEligibility } from "@/lib/apply-session";
+import { applyFlow, type EligibilityAnswers } from "@/lib/flowState";
 
 const steps = [
   { label: "Eligibility" },
@@ -22,12 +22,38 @@ const steps = [
 
 export default function ApplyEligibilityPage() {
   const router = useRouter();
-  const [ageRange, setAgeRange] = useState("");
-  const [zip, setZip] = useState("");
-  const [education, setEducation] = useState("");
+  const [age, setAge] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [highestEducation, setHighestEducation] = useState("");
   const [interest, setInterest] = useState("");
-  const [income, setIncome] = useState("");
+  const [householdIncomeRange, setHouseholdIncomeRange] = useState("");
   const [firstGen, setFirstGen] = useState("");
+
+  useEffect(() => {
+    const prev = applyFlow.getEligibility();
+    if (prev) {
+      setAge(prev.age);
+      setZipCode(prev.zipCode);
+      setHighestEducation(prev.highestEducation);
+      setInterest(prev.interest);
+      setHouseholdIncomeRange(prev.householdIncomeRange);
+      setFirstGen(prev.firstGenerationStatus);
+    }
+  }, []);
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const answers: EligibilityAnswers = {
+      age,
+      zipCode,
+      highestEducation,
+      interest,
+      householdIncomeRange,
+      firstGenerationStatus: firstGen,
+    };
+    applyFlow.setEligibility(answers);
+    router.push("/apply/intake");
+  }
 
   return (
     <FlowShell
@@ -60,29 +86,15 @@ export default function ApplyEligibilityPage() {
         subtitle="Answer a few quick questions to get started."
       />
 
-      <form
-        className="grid gap-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          saveEligibility({
-            ageRange,
-            zip,
-            highestEducation: education,
-            interest,
-            incomeRange: income,
-            firstGen,
-          });
-          router.push("/apply/intake");
-        }}
-      >
+      <form className="grid gap-5" onSubmit={onSubmit}>
         <FormSection title="About you">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="How old are you?" required htmlFor="el-age">
               <Select
                 id="el-age"
                 required
-                value={ageRange}
-                onChange={(e) => setAgeRange(e.target.value)}
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
               >
                 <option value="" disabled>
                   Select age range
@@ -101,8 +113,8 @@ export default function ApplyEligibilityPage() {
                 inputMode="numeric"
                 maxLength={5}
                 placeholder="07505"
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
               />
             </Field>
           </div>
@@ -114,8 +126,8 @@ export default function ApplyEligibilityPage() {
             <Select
               id="el-edu"
               required
-              value={education}
-              onChange={(e) => setEducation(e.target.value)}
+              value={highestEducation}
+              onChange={(e) => setHighestEducation(e.target.value)}
             >
               <option value="" disabled>
                 Select an option
@@ -166,8 +178,8 @@ export default function ApplyEligibilityPage() {
             <Select
               id="el-income"
               required
-              value={income}
-              onChange={(e) => setIncome(e.target.value)}
+              value={householdIncomeRange}
+              onChange={(e) => setHouseholdIncomeRange(e.target.value)}
             >
               <option value="" disabled>
                 Select range

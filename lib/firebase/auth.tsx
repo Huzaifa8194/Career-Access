@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -10,233 +9,133 @@ import {
   type ReactNode,
 } from "react";
 import {
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signOut as fbSignOut,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendPasswordResetEmail,
   updateProfile,
-  type User as FirebaseUser,
+  type User,
 } from "firebase/auth";
-import { getDoc, setDoc } from "firebase/firestore";
-import { getFirebaseApp, getFirebaseAuth, loadAnalytics } from "./config";
-import { nowTimestamp, type PortalRole, userDoc } from "./firestore";
-export type { PortalRole } from "./firestore";
-
-export type AppUser = {
-  uid: string;
-  email: string;
-  fullName: string;
-  role: PortalRole;
-};
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getFirebaseAuth, getFirebaseDb } from "./config";
+import { COLLECTIONS, type PortalRole, type UserDoc } from "./types";
 
 type AuthContextValue = {
-  user: AppUser | null;
-  firebaseUser: FirebaseUser | null;
+  user: User | null;
+  profile: UserDoc | null;
   loading: boolean;
-  /** True when no credentialed user is present — the site still renders. */
-  signingIn: boolean;
-  signIn: (email: string, password: string) => Promise<AppUser>;
-  signUp: (args: {
-    email: string;
-    password: string;
-    fullName: string;
-    role?: PortalRole;
-  }) => Promise<AppUser>;
+  signIn: (email: string, password: string) => Promise<User>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role?: PortalRole,
+    extras?: { phone?: string; participantId?: string }
+  ) => Promise<User>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  refresh: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function fetchUserProfile(uid: string): Promise<UserDoc | null> {
+  const snap = await getDoc(doc(getFirebaseDb(), COLLECTIONS.users, uid));
+  if (!snap.exists()) return null;
+  return snap.data() as UserDoc;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<AppUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserDoc | null>(null);
   const [loading, setLoading] = useState(true);
-  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
-    // If the app is pointed at a different Firebase project than before,
-    // clear the previous auth session to avoid accounts:lookup 400 errors.
-    if (typeof window === "undefined") return;
-    const markerKey = "cah:firebase-project-id";
-    const currentProject = getFirebaseApp().options.projectId ?? "";
-    const previousProject = window.localStorage.getItem(markerKey) ?? "";
-    if (previousProject && currentProject && previousProject !== currentProject) {
-      void fbSignOut(getFirebaseAuth()).catch(() => {
-        // best effort
-      });
-    }
-    window.localStorage.setItem(markerKey, currentProject);
-  }, []);
-
-  const hydrate = useCallback(async (fbu: FirebaseUser | null): Promise<AppUser | null> => {
-    if (!fbu) {
-      setUser(null);
-      return null;
-    }
-    const defaultName =
-      fbu.displayName ?? (fbu.email ? fbu.email.split("@")[0] : "Guest");
-    const fallback: AppUser = {
-      uid: fbu.uid,
-      email: fbu.email ?? "",
-      fullName: defaultName,
-      role: "participant",
-    };
-    try {
-      const snap = await getDoc(userDoc(fbu.uid));
-      const row = snap.exists() ? snap.data() : null;
-      if (row?.uid) {
-        const hydratedUser: AppUser = {
-          uid: row.uid,
-          email: row.email,
-          fullName: row.fullName,
-          role: row.role ?? "participant",
-        };
-        setUser(hydratedUser);
-        return hydratedUser;
-      }
-      await setDoc(
-        userDoc(fbu.uid),
-        {
-          uid: fbu.uid,
-          email: fbu.email ?? fallback.email,
-          fullName: fbu.displayName ?? fallback.fullName,
-          role: "participant",
-          createdAt: nowTimestamp(),
-        },
-        { merge: true }
-      );
-      setUser({ ...fallback, role: "participant" });
-      return { ...fallback, role: "participant" };
-    } catch (error) {
-      // Keep auth UX alive even if profile sync fails temporarily.
-      // eslint-disable-next-line no-console
-      console.warn("[Auth] profile hydrate failed:", error);
-      setUser(fallback);
-      return fallback;
-    }
-  }, []);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(getFirebaseAuth(), async (fbu) => {
-      setFirebaseUser(fbu);
-      try {
-        await hydrate(fbu);
-      } finally {
-        setLoading(false);
-      }
-    });
-    void loadAnalytics();
-    return unsub;
-  }, [hydrate]);
-
-  const signIn = useCallback(async (email: string, password: string) => {
-    setSigningIn(true);
-    try {
-      const cred = await signInWithEmailAndPassword(
-        getFirebaseAuth(),
-        email,
-        password
-      );
-      const hydrated = await hydrate(cred.user);
-      return (
-        hydrated ?? {
-          uid: cred.user.uid,
-          email: cred.user.email ?? email,
-          fullName: cred.user.displayName ?? email.split("@")[0],
-          role: "participant",
+    const auth = getFirebaseAuth();
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        try {
+          const p = await fetchUserProfile(u.uid);
+          setProfile(p);
+        } catch {
+          setProfile(null);
         }
-      );
-    } finally {
-      setSigningIn(false);
-    }
-  }, [hydrate]);
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
-  const signUp = useCallback(
-    async ({
-      email,
-      password,
-      fullName,
-      role = "participant",
-    }: {
-      email: string;
-      password: string;
-      fullName: string;
-      role?: PortalRole;
-    }) => {
-      setSigningIn(true);
-      try {
+  async function refreshProfile() {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+    try {
+      const p = await fetchUserProfile(user.uid);
+      setProfile(p);
+    } catch {
+      setProfile(null);
+    }
+  }
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      profile,
+      loading,
+      signIn: async (email, password) => {
+        const cred = await signInWithEmailAndPassword(
+          getFirebaseAuth(),
+          email,
+          password
+        );
+        try {
+          const p = await fetchUserProfile(cred.user.uid);
+          setProfile(p);
+        } catch {}
+        return cred.user;
+      },
+      signUp: async (email, password, fullName, role = "participant", extras) => {
         const cred = await createUserWithEmailAndPassword(
           getFirebaseAuth(),
           email,
           password
         );
-        await updateProfile(cred.user, { displayName: fullName });
-        await setDoc(
-          userDoc(cred.user.uid),
-          {
-            uid: cred.user.uid,
-            email,
-            fullName,
-            role,
-            createdAt: nowTimestamp(),
-          },
-          { merge: true }
-        );
-        const appUser: AppUser = {
+        try {
+          await updateProfile(cred.user, { displayName: fullName });
+        } catch {}
+        const userData: UserDoc = {
           uid: cred.user.uid,
-          email,
-          fullName,
           role,
+          fullName,
+          email,
+          phone: extras?.phone ?? null,
+          participantId: extras?.participantId ?? null,
+          createdAt: serverTimestamp() as unknown as UserDoc["createdAt"],
+          updatedAt: serverTimestamp() as unknown as UserDoc["updatedAt"],
         };
-        setUser(appUser);
-        return appUser;
-      } catch (error) {
-        const fbError = error as { code?: string; message?: string };
-        if (
-          fbError?.code === "permission-denied" ||
-          fbError?.code === "firestore/permission-denied"
-        ) {
-          throw Object.assign(new Error("Profile write denied by Firestore rules"), {
-            code: "firestore/permission-denied",
-          });
-        }
-        throw error;
-      } finally {
-        setSigningIn(false);
-      }
-    },
-    []
-  );
-
-  const signOut = useCallback(async () => {
-    await fbSignOut(getFirebaseAuth());
-    setUser(null);
-  }, []);
-
-  const resetPassword = useCallback(async (email: string) => {
-    await sendPasswordResetEmail(getFirebaseAuth(), email);
-  }, []);
-
-  const refresh = useCallback(async () => {
-    await hydrate(getFirebaseAuth().currentUser);
-  }, [hydrate]);
-
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      firebaseUser,
-      loading,
-      signingIn,
-      signIn,
-      signUp,
-      signOut,
-      resetPassword,
-      refresh,
+        await setDoc(
+          doc(getFirebaseDb(), COLLECTIONS.users, cred.user.uid),
+          userData
+        );
+        setProfile(userData);
+        return cred.user;
+      },
+      signOut: async () => {
+        await firebaseSignOut(getFirebaseAuth());
+        setProfile(null);
+      },
+      resetPassword: async (email) => {
+        await sendPasswordResetEmail(getFirebaseAuth(), email);
+      },
+      refreshProfile,
     }),
-    [user, firebaseUser, loading, signingIn, signIn, signUp, signOut, resetPassword, refresh]
+    [user, profile, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -245,11 +144,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error("useAuth() must be used inside <AuthProvider />");
+    throw new Error("useAuth must be used inside <AuthProvider />");
   }
   return ctx;
 }
 
-export function useOptionalAuth(): AuthContextValue | null {
-  return useContext(AuthContext);
+export function friendlyAuthError(err: unknown): string {
+  const code = (err as { code?: string })?.code ?? "";
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "Email or password is incorrect.";
+    case "auth/email-already-in-use":
+      return "An account already exists with that email.";
+    case "auth/weak-password":
+      return "Password is too weak. Use at least 8 characters.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again in a few minutes.";
+    case "auth/network-request-failed":
+      return "Network error. Check your connection and try again.";
+    default:
+      return (err as Error)?.message || "Something went wrong. Please try again.";
+  }
 }

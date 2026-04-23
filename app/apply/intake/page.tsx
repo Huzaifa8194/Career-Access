@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -19,13 +19,10 @@ import {
   Checkbox,
 } from "@/components/ui/Field";
 import { Upload, ArrowRight } from "@/components/icons";
-import {
-  readEligibility,
-  saveApplyResult,
-} from "@/lib/apply-session";
-import { submitIntake } from "@/lib/services/participants";
+import { applyFlow, type IntakeAnswers } from "@/lib/flowState";
+import { createParticipantFromApplication } from "@/lib/services/participants";
 import { uploadParticipantDocument } from "@/lib/services/documents";
-import { recommendPathway } from "@/lib/pathway";
+import { useAuth } from "@/lib/firebase/auth";
 
 const steps = [
   { label: "Eligibility" },
@@ -46,28 +43,62 @@ const supportOptions = [
 
 export default function IntakePage() {
   const router = useRouter();
+  const { user } = useAuth();
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [mobilePhone, setMobilePhone] = useState("");
+  const [contact, setContact] = useState("Email");
+  const [streetAddress, setStreetAddress] = useState("");
   const [city, setCity] = useState("");
-  const [stateVal, setStateVal] = useState("NJ");
-  const [zip, setZip] = useState("");
+  const [state, setState] = useState("NJ");
+  const [zipCode, setZipCode] = useState("");
   const [education, setEducation] = useState("");
   const [enrolled, setEnrolled] = useState("");
+  const [interest, setInterest] = useState("");
   const [employed, setEmployed] = useState("");
   const [jobTitle, setJobTitle] = useState("");
-  const [interest, setInterest] = useState("");
   const [supports, setSupports] = useState<string[]>([]);
-  const [contact, setContact] = useState("Email");
-  const [file, setFile] = useState<File | null>(null);
-  const [consentAccuracy, setConsentAccuracy] = useState(false);
-  const [consentContact, setConsentContact] = useState(false);
-  const [consentDataShare, setConsentDataShare] = useState(false);
   const [notes, setNotes] = useState("");
+  const [consentAccurate, setConsentAccurate] = useState(false);
+  const [consentContact, setConsentContact] = useState(false);
+  const [consentPartnerSharing, setConsentPartnerSharing] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const prev = applyFlow.getIntake();
+    if (prev) {
+      setFirstName(prev.firstName);
+      setLastName(prev.lastName);
+      setEmail(prev.email);
+      setMobilePhone(prev.mobilePhone);
+      setContact(prev.preferredContactMethod || "Email");
+      setStreetAddress(prev.streetAddress);
+      setCity(prev.city);
+      setState(prev.state || "NJ");
+      setZipCode(prev.zipCode);
+      setEducation(prev.highestEducation);
+      setEnrolled(prev.currentlyEnrolled);
+      setInterest(prev.interest);
+      setEmployed(prev.currentlyEmployed);
+      setJobTitle(prev.jobTitle);
+      setSupports(prev.supportNeeded || []);
+      setNotes(prev.notes);
+      setConsentAccurate(prev.consentAccurate);
+      setConsentContact(prev.consentContact);
+      setConsentPartnerSharing(prev.consentPartnerSharing);
+    } else {
+      const elig = applyFlow.getEligibility();
+      if (elig) {
+        setZipCode(elig.zipCode || "");
+        setEducation(elig.highestEducation || "");
+      }
+    }
+  }, []);
 
   function toggleSupport(name: string) {
     setSupports((prev) =>
@@ -75,81 +106,82 @@ export default function IntakePage() {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    if (!consentAccuracy || !consentContact) {
-      setError("Please confirm both required consents to continue.");
-      return;
-    }
+    if (submitting) return;
     setSubmitting(true);
-    try {
-      const eligibility = readEligibility() ?? {};
-      const intakeAnswers = {
-        highestEducation: education,
-        currentlyEnrolled: enrolled,
-        interest,
-        employed,
-        jobTitle,
-        supportNeeded: supports,
-        notes,
-      };
-      const pathway = recommendPathway(eligibility, intakeAnswers);
+    setError(null);
 
-      const { participantId, live } = await submitIntake({
-        firstName,
-        lastName,
-        email,
-        phone,
-        preferredContactMethod: contact,
-        address,
-        city,
-        state: stateVal,
-        zipCode: zip,
-        educationLevel: education,
-        currentlyEnrolled: enrolled === "Yes",
-        programInterest: interest,
-        employed: employed === "Yes",
-        jobTitle: employed === "Yes" ? jobTitle : undefined,
-        supportNeeded: supports,
-        pathway,
+    const intake: IntakeAnswers = {
+      firstName,
+      lastName,
+      email,
+      mobilePhone,
+      preferredContactMethod: contact,
+      streetAddress,
+      city,
+      state,
+      zipCode,
+      highestEducation: education,
+      currentlyEnrolled: enrolled,
+      interest,
+      currentlyEmployed: employed,
+      jobTitle,
+      supportNeeded: supports,
+      notes,
+      consentAccurate,
+      consentContact,
+      consentPartnerSharing,
+    };
+    applyFlow.setIntake(intake);
+
+    try {
+      const eligibility = applyFlow.getEligibility() ?? {
+        age: "",
+        zipCode,
+        highestEducation: education,
+        interest,
+        householdIncomeRange: "",
+        firstGenerationStatus: "",
+      };
+
+      const result = await createParticipantFromApplication({
+        userId: user?.uid ?? null,
+        eligibility: eligibility as unknown as Record<string, unknown>,
+        intake: intake as unknown as Record<string, unknown>,
         source: "Direct",
-        consentAccuracy,
-        consentContact,
-        consentDataShare,
-        eligibilityAnswers: eligibility,
-        intakeAnswers,
       });
 
-      if (live && participantId && file) {
+      if (file) {
         try {
-          await uploadParticipantDocument({
+          await uploadParticipantDocument(
+            result.participantId,
             file,
-            participantId,
-            status: "in-review",
-          });
-        } catch (uploadError) {
-          console.warn("Document upload failed:", uploadError);
+            user?.uid ?? "applicant"
+          );
+        } catch {
         }
       }
 
-      saveApplyResult({
-        participantId,
-        applicationId: null,
-        pathway,
-        firstName,
+      const submittedAt = new Date().toISOString();
+      applyFlow.setConfirmation({
+        participantId: result.participantId,
+        applicationId: result.applicationId,
+        pathway: result.pathway,
+        referenceId: `CA-${submittedAt.slice(0, 10)}-${result.participantId.slice(-6).toUpperCase()}`,
         email,
-        bookLink: "/book",
-        live,
-        submittedAt: new Date().toISOString(),
+        firstName,
+        lastName,
+        submittedAt,
       });
+
       router.push("/apply/confirmation");
     } catch (err) {
       console.error(err);
       setError(
-        "Something went wrong submitting your application. Please try again."
+        (err as Error)?.message ||
+          "We couldn't submit your application. Please try again."
       );
-    } finally {
       setSubmitting(false);
     }
   }
@@ -166,10 +198,7 @@ export default function IntakePage() {
           >
             <ul className="grid gap-2 text-[13px] text-ink-muted">
               <li>You can leave fields blank if you&apos;re not sure.</li>
-              <li>
-                Documents are optional — your advisor will request what&apos;s
-                needed.
-              </li>
+              <li>Documents are optional — your advisor will request what&apos;s needed.</li>
               <li>Your answers save as you type.</li>
             </ul>
           </FlowSidebar>
@@ -192,7 +221,7 @@ export default function IntakePage() {
         subtitle="Provide your information so we can support you."
       />
 
-      <form className="grid gap-5" onSubmit={handleSubmit}>
+      <form className="grid gap-5" onSubmit={onSubmit}>
         <FormSection title="Personal Information">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="First Name" required htmlFor="fn">
@@ -229,8 +258,8 @@ export default function IntakePage() {
                 type="tel"
                 required
                 placeholder="(201) 555-0123"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={mobilePhone}
+                onChange={(e) => setMobilePhone(e.target.value)}
               />
             </Field>
           </div>
@@ -253,8 +282,8 @@ export default function IntakePage() {
             <Input
               id="addr"
               placeholder="123 Main St"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              value={streetAddress}
+              onChange={(e) => setStreetAddress(e.target.value)}
             />
           </Field>
           <div className="grid gap-5 sm:grid-cols-3">
@@ -268,8 +297,8 @@ export default function IntakePage() {
             <Field label="State" htmlFor="state">
               <Select
                 id="state"
-                value={stateVal}
-                onChange={(e) => setStateVal(e.target.value)}
+                value={state}
+                onChange={(e) => setState(e.target.value)}
               >
                 <option>NJ</option>
                 <option>NY</option>
@@ -284,8 +313,8 @@ export default function IntakePage() {
                 required
                 inputMode="numeric"
                 maxLength={5}
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
               />
             </Field>
           </div>
@@ -430,12 +459,11 @@ export default function IntakePage() {
               </div>
             </div>
             <span className="text-[13px] font-medium text-primary">
-              {file ? "Replace" : "Upload Files"}
+              Upload Files
             </span>
             <input
               type="file"
               className="sr-only"
-              accept="application/pdf,image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </label>
@@ -444,8 +472,8 @@ export default function IntakePage() {
         <FormSection title="Consent">
           <Checkbox
             required
-            checked={consentAccuracy}
-            onChange={(e) => setConsentAccuracy(e.target.checked)}
+            checked={consentAccurate}
+            onChange={(e) => setConsentAccurate(e.target.checked)}
             label="I confirm the information provided is accurate."
           />
           <Checkbox
@@ -455,21 +483,18 @@ export default function IntakePage() {
             label="I consent to be contacted by program staff."
           />
           <Checkbox
-            checked={consentDataShare}
-            onChange={(e) => setConsentDataShare(e.target.checked)}
+            checked={consentPartnerSharing}
+            onChange={(e) => setConsentPartnerSharing(e.target.checked)}
             label="I agree to allow my information to be shared with partner organizations for support services."
             description="Optional — you can update this anytime in your portal."
           />
         </FormSection>
 
-        {error ? (
-          <p
-            role="alert"
-            className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
-          >
+        {error && (
+          <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
             {error}
-          </p>
-        ) : null}
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-3 pt-2">
           <Link

@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
-import { RequireAuth } from "@/components/portal/RequireAuth";
 import { ParticipantProfile } from "@/components/portal/ParticipantProfile";
 import { LinkButton } from "@/components/ui/Button";
-import { ArrowRight, MessageSquare } from "@/components/icons";
+import { MessageSquare } from "@/components/icons";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
-  fetchParticipant,
-  type PortalParticipant,
+  fetchParticipantById,
+  type ParticipantListItem,
 } from "@/lib/services/participants";
 
 export default function AdminParticipantPage({
@@ -19,26 +19,30 @@ export default function AdminParticipantPage({
 }) {
   const { id } = use(params);
   return (
-    <RequireAuth requiredRole="admin">
-      <ParticipantDetail id={id} />
-    </RequireAuth>
+    <RoleGuard allow={["admin"]}>
+      <AdminParticipantView id={id} />
+    </RoleGuard>
   );
 }
 
-function ParticipantDetail({ id }: { id: string }) {
-  const [participant, setParticipant] = useState<PortalParticipant | null>(null);
+function AdminParticipantView({ id }: { id: string }) {
+  const [participant, setParticipant] = useState<ParticipantListItem | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const p = await fetchParticipant(id);
-        if (!cancelled) setParticipant(p);
-      } finally {
+    fetchParticipantById(id)
+      .then((p) => {
+        if (!cancelled) {
+          setParticipant(p);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
         if (!cancelled) setLoading(false);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
@@ -46,19 +50,20 @@ function ParticipantDetail({ id }: { id: string }) {
 
   if (loading) {
     return (
-      <PortalShell role="admin" title="Loading…" subtitle="Fetching participant">
-        <div className="h-40 grid place-items-center text-[13px] text-ink-muted">
-          Loading participant…
-        </div>
+      <PortalShell role="admin" title="Applicant">
+        <div className="text-[13px] text-ink-muted">Loading applicant…</div>
       </PortalShell>
     );
   }
 
   if (!participant) {
     return (
-      <PortalShell role="admin" title="Not found" subtitle="No participant matched that ID">
-        <div className="h-40 grid place-items-center text-[13px] text-ink-muted">
-          We couldn&apos;t find that participant.
+      <PortalShell role="admin" title="Not found">
+        <div className="text-[14px] text-ink-muted">
+          We couldn&apos;t find this applicant.{" "}
+          <Link href="/portal/admin/participants" className="text-primary">
+            Back to list
+          </Link>
         </div>
       </PortalShell>
     );
@@ -68,7 +73,11 @@ function ParticipantDetail({ id }: { id: string }) {
     <PortalShell
       role="admin"
       title={`${participant.firstName} ${participant.lastName}`}
-      subtitle={`${participant.pathway} · ${participant.city || "—"}, ${participant.state || ""}`}
+      subtitle={`${participant.pathway} · ${
+        participant.city
+          ? `${participant.city}, ${participant.state}`
+          : "Location unknown"
+      }`}
       actions={
         <>
           <Link
@@ -82,10 +91,7 @@ function ParticipantDetail({ id }: { id: string }) {
             variant="secondary"
             size="sm"
           >
-            <MessageSquare size={14} /> Message
-          </LinkButton>
-          <LinkButton href="#" variant="primary" size="sm">
-            Assign advisor <ArrowRight size={14} />
+            <MessageSquare size={14} /> Email
           </LinkButton>
         </>
       }

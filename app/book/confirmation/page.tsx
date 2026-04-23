@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   FlowShell,
   FlowSidebar,
@@ -12,12 +15,32 @@ import {
   Mail,
   ArrowRight,
 } from "@/components/icons";
+import { bookFlow, type BookConfirmation } from "@/lib/flowState";
 
 const steps = [{ label: "Schedule" }, { label: "Confirmation" }];
 
-export const metadata = { title: "Appointment confirmed" };
+function formatDateLabel(dateStr: string): string {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map((v) => parseInt(v, 10));
+  const dt = new Date(y || 1970, (m || 1) - 1, d || 1);
+  return dt.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function BookConfirmationPage() {
+  const [data, setData] = useState<BookConfirmation | null>(null);
+
+  useEffect(() => {
+    setData(bookFlow.get());
+  }, []);
+
+  const dateLabel = data?.scheduledDate
+    ? `${formatDateLabel(data.scheduledDate)} · ${data.scheduledTime} ${data.timezone}`
+    : "Tuesday, Apr 22 · 10:30 AM ET";
+
   return (
     <FlowShell
       steps={steps}
@@ -43,11 +66,12 @@ export default function BookConfirmationPage() {
           </Badge>
         </div>
         <h1 className="mt-5 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-[1.05]">
-          You're on the calendar.
+          You&apos;re on the calendar.
         </h1>
         <p className="mt-3 text-[16px] text-ink-muted leading-7 max-w-xl">
-          We've sent a confirmation to your email with a calendar invite and a
-          link to join.
+          We&apos;ve sent a confirmation to
+          {data?.contactEmail ? ` ${data.contactEmail}` : " your email"} with a
+          calendar invite and a link to join.
         </p>
 
         <Card className="mt-8 p-6">
@@ -57,10 +81,11 @@ export default function BookConfirmationPage() {
                 <Calendar size={14} /> Your appointment
               </span>
               <p className="mt-2 text-[18px] font-semibold tracking-tight">
-                Tuesday, Apr 22 · 10:30 AM ET
+                {dateLabel}
               </p>
               <p className="text-[13px] text-ink-muted mt-1">
-                30 minutes · Video call · with Maya Robinson
+                {data?.appointmentType ?? "General advising"} ·{" "}
+                {data?.mode ?? "Video call"}
               </p>
             </div>
             <Badge tone="primary">Confirmed</Badge>
@@ -70,19 +95,26 @@ export default function BookConfirmationPage() {
               <div className="text-[12px] uppercase tracking-wider text-ink-subtle">
                 Type
               </div>
-              <div className="text-[14px] mt-1">General advising</div>
+              <div className="text-[14px] mt-1">
+                {data?.appointmentType?.split("(")[0].trim() ??
+                  "General advising"}
+              </div>
             </div>
             <div>
               <div className="text-[12px] uppercase tracking-wider text-ink-subtle">
                 Mode
               </div>
-              <div className="text-[14px] mt-1">Video (link in email)</div>
+              <div className="text-[14px] mt-1">
+                {data?.mode ?? "Video"} (link in email)
+              </div>
             </div>
             <div>
               <div className="text-[12px] uppercase tracking-wider text-ink-subtle">
                 Reference
               </div>
-              <div className="text-[14px] mt-1 font-mono">CA-APT-2026-0931</div>
+              <div className="text-[14px] mt-1 font-mono">
+                {data?.reference ?? "—"}
+              </div>
             </div>
           </div>
         </Card>
@@ -97,7 +129,7 @@ export default function BookConfirmationPage() {
             </h3>
             <p className="mt-1 text-[13px] text-ink-muted leading-6">
               The calendar invite includes the join link, agenda, and your
-              advisor's contact info.
+              advisor&apos;s contact info.
             </p>
           </Card>
           <Card className="p-5">

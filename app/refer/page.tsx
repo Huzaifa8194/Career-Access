@@ -18,41 +18,43 @@ import {
 } from "@/components/ui/Field";
 import { ArrowRight } from "@/components/icons";
 import { submitReferral } from "@/lib/services/referrals";
+import { referralFlow } from "@/lib/flowState";
 
 const steps = [{ label: "Referral" }, { label: "Confirmation" }];
 
 export default function ReferPage() {
   const router = useRouter();
+
   const [referrerName, setReferrerName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+
   const [applicantFirstName, setApplicantFirstName] = useState("");
   const [applicantLastName, setApplicantLastName] = useState("");
   const [applicantEmail, setApplicantEmail] = useState("");
   const [applicantPhone, setApplicantPhone] = useState("");
   const [zipCode, setZipCode] = useState("");
+
   const [programInterest, setProgramInterest] = useState("");
   const [urgency, setUrgency] = useState("");
-  const [reason, setReason] = useState("");
-  const [permission, setPermission] = useState(false);
+  const [reasonForReferral, setReasonForReferral] = useState("");
+  const [permissionConfirmed, setPermissionConfirmed] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    if (!permission) {
-      setError("Please confirm you have permission to refer this person.");
-      return;
-    }
+    if (submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
-      await submitReferral({
+      const id = await submitReferral({
         referrerName,
         organizationName,
         email,
-        phone,
+        phone: phone || null,
         applicantFirstName,
         applicantLastName,
         applicantEmail,
@@ -60,14 +62,22 @@ export default function ReferPage() {
         zipCode,
         programInterest,
         urgency,
-        reason,
-        permissionConfirmed: permission,
+        reasonForReferral,
+        permissionConfirmed,
+      });
+      referralFlow.set({
+        referralId: id,
+        applicantFirstName,
+        applicantLastName,
+        organizationName,
       });
       router.push("/refer/confirmation");
     } catch (err) {
       console.error(err);
-      setError("We couldn't submit your referral. Please try again.");
-    } finally {
+      setError(
+        (err as Error)?.message ||
+          "We couldn't submit your referral. Please try again."
+      );
       setSubmitting(false);
     }
   }
@@ -100,7 +110,7 @@ export default function ReferPage() {
         subtitle="Help someone take the next step."
       />
 
-      <form className="grid gap-5" onSubmit={handleSubmit}>
+      <form className="grid gap-5" onSubmit={onSubmit}>
         <FormSection title="Your Information">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Your Name" required htmlFor="r-name">
@@ -238,8 +248,8 @@ export default function ReferPage() {
               id="reason"
               rows={4}
               required
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              value={reasonForReferral}
+              onChange={(e) => setReasonForReferral(e.target.value)}
             />
           </Field>
         </FormSection>
@@ -247,21 +257,18 @@ export default function ReferPage() {
         <FormSection title="Consent">
           <Checkbox
             required
-            checked={permission}
-            onChange={(e) => setPermission(e.target.checked)}
+            checked={permissionConfirmed}
+            onChange={(e) => setPermissionConfirmed(e.target.checked)}
             label="I confirm I have permission to refer this individual."
             description="We will only contact them about Career Access Hub services."
           />
         </FormSection>
 
-        {error ? (
-          <p
-            role="alert"
-            className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
-          >
+        {error && (
+          <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
             {error}
-          </p>
-        ) : null}
+          </div>
+        )}
 
         <div className="flex items-center justify-end pt-2">
           <Button type="submit" size="lg" disabled={submitting}>

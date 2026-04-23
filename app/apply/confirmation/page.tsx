@@ -16,7 +16,7 @@ import {
   Mail,
   FileText,
 } from "@/components/icons";
-import { readApplyResult, type ApplyResult } from "@/lib/apply-session";
+import { applyFlow, type ApplyConfirmation } from "@/lib/flowState";
 
 const steps = [
   { label: "Eligibility" },
@@ -25,19 +25,14 @@ const steps = [
 ];
 
 export default function ApplyConfirmationPage() {
-  const [result, setResult] = useState<ApplyResult | null>(null);
+  const [data, setData] = useState<ApplyConfirmation | null>(null);
 
   useEffect(() => {
-    setResult(readApplyResult());
+    setData(applyFlow.getConfirmation());
   }, []);
 
-  const refId =
-    result?.participantId ??
-    `CA-${new Date().getFullYear()}-${String(
-      new Date().getMonth() + 1
-    ).padStart(2, "0")}-${Math.floor(Math.random() * 9000 + 1000)}`;
-  const pathway = result?.pathway ?? "College + FAFSA";
-  const firstName = result?.firstName;
+  const refId = data?.referenceId ?? "CA-APP-PENDING";
+  const pathway = data?.pathway ?? "College + FAFSA";
 
   return (
     <FlowShell
@@ -50,17 +45,15 @@ export default function ApplyConfirmationPage() {
             title="Reference"
             blurb="Save this for your records. We've also emailed it to you."
           >
-            <div className="rounded-md border border-line bg-canvas/60 p-3 font-mono text-[13px] tracking-tight break-all">
+            <div className="rounded-md border border-line bg-canvas/60 p-3 font-mono text-[13px] tracking-tight">
               {refId}
             </div>
           </FlowSidebar>
           <FlowSidebar title="Your pathway">
             <p className="text-[13px] text-ink-muted leading-6">
-              Based on your answers we&apos;ve recommended:
+              Based on your answers we&apos;ve matched you to:
             </p>
-            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-50 px-3 py-1 text-[13px] font-medium text-primary">
-              {pathway}
-            </div>
+            <Badge tone="primary">{pathway}</Badge>
           </FlowSidebar>
           <FlowSidebar title="Want to skip the wait?">
             <p className="text-[13px] text-ink-muted leading-6">
@@ -84,12 +77,11 @@ export default function ApplyConfirmationPage() {
           </Badge>
         </div>
         <h1 className="mt-5 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-[1.05]">
-          {firstName ? `Thank you, ${firstName}!` : "Thank You!"}
+          Thank You{data?.firstName ? `, ${data.firstName}` : ""}!
         </h1>
         <p className="mt-3 text-[16px] text-ink-muted leading-7 max-w-xl">
-          Your application has been submitted. We&apos;ve recommended the{" "}
-          <span className="font-medium text-ink">{pathway}</span> pathway
-          based on your answers.
+          Your application has been submitted and routed to an advisor. You can
+          create a portal account below to track your progress.
         </p>
 
         <div className="mt-8">
@@ -111,8 +103,7 @@ export default function ApplyConfirmationPage() {
               {
                 icon: <Calendar size={16} />,
                 title: "Schedule a call",
-                copy:
-                  "You can schedule an advising call now if you haven't already.",
+                copy: "You can schedule an advising call now if you haven&apos;t already.",
               },
             ].map((s, i) => (
               <Card key={s.title} className="p-5">
@@ -140,11 +131,11 @@ export default function ApplyConfirmationPage() {
             Book an Advising Call <ArrowRight size={16} />
           </LinkButton>
           <LinkButton
-            href="/portal/participant"
+            href="/portal/sign-up"
             variant="action"
             size="lg"
           >
-            Go to your portal
+            Create your portal account
           </LinkButton>
           <Link
             href="/"

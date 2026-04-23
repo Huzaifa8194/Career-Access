@@ -56,7 +56,7 @@ function Hero() {
               Your Next Step
               <br />
               <span className="text-primary">Starts Here</span>
-          </h1>
+            </h1>
             <p className="mt-4 sm:mt-5 max-w-xl text-[15px] sm:text-[16px] md:text-[17px] leading-relaxed text-ink-muted">
               Get free support to enroll in college, job training, or
               apprenticeship programs.
@@ -678,7 +678,7 @@ function Stories() {
             </Card>
           ))}
         </div>
-    </div>
+      </div>
     </section>
   );
 }

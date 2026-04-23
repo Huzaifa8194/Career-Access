@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PortalShell, StatCard } from "@/components/portal/PortalShell";
-import { RequireAuth } from "@/components/portal/RequireAuth";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
-import { pipelineStages, type ParticipantStatus } from "@/lib/data";
 import { ArrowRight, ChartBar } from "@/components/icons";
-import { fetchAdminSnapshot, type AdminSnapshot } from "@/lib/services/admin";
+import { RoleGuard } from "@/components/auth/RoleGuard";
+import { fetchAdminMetrics, type AdminMetrics } from "@/lib/services/metrics";
+import {
+  subscribeParticipants,
+  type ParticipantListItem,
+} from "@/lib/services/participants";
+import type { ParticipantStatus } from "@/lib/firebase/types";
 
 const statusTone: Record<
   ParticipantStatus,
@@ -23,44 +27,49 @@ const statusTone: Record<
   Inactive: "muted",
 };
 
+const stages: { key: ParticipantStatus; label: string; description: string }[] = [
+  { key: "New", label: "New", description: "Fresh applications" },
+  { key: "Screened", label: "Screened", description: "Eligibility passed" },
+  {
+    key: "Intake complete",
+    label: "Intake complete",
+    description: "Ready for advisor",
+  },
+  { key: "Advising", label: "Advising", description: "Active case" },
+  { key: "Enrolled", label: "Enrolled", description: "Outcome reached" },
+];
+
 export default function AdminOverviewPage() {
   return (
-    <RequireAuth requiredRole="admin">
-      <AdminOverviewInner />
-    </RequireAuth>
+    <RoleGuard allow={["admin"]}>
+      <AdminOverview />
+    </RoleGuard>
   );
 }
 
-function AdminOverviewInner() {
-  const [snap, setSnap] = useState<AdminSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+function AdminOverview() {
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  const [participants, setParticipants] = useState<ParticipantListItem[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchAdminSnapshot();
-        if (!cancelled) setSnap(data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    fetchAdminMetrics().then(setMetrics).catch(() => setMetrics(null));
+    const unsub = subscribeParticipants(setParticipants);
+    return () => unsub();
   }, []);
 
-  const stageCount = (k: ParticipantStatus) => snap?.stageCounts?.[k] ?? 0;
+  useEffect(() => {
+    if (participants.length) {
+      fetchAdminMetrics().then(setMetrics).catch(() => {});
+    }
+  }, [participants.length]);
+
+  const recent = useMemo(() => participants.slice(0, 8), [participants]);
 
   return (
     <PortalShell
       role="admin"
       title="Dashboard Overview"
-      subtitle={
-        snap?.live
-          ? "Operational view across all applicants and partners."
-          : "Operational view — showing sample data until the Firebase backend is deployed."
-      }
+      subtitle="Operational view across all applicants and partners."
       actions={
         <>
           <LinkButton
@@ -70,8 +79,12 @@ function AdminOverviewInner() {
           >
             All applicants
           </LinkButton>
-          <LinkButton href="#" variant="primary" size="sm">
-            Export quarterly report
+          <LinkButton
+            href="/portal/admin/partners"
+            variant="primary"
+            size="sm"
+          >
+            Partner report
           </LinkButton>
         </>
       }
@@ -79,23 +92,23 @@ function AdminOverviewInner() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard
           label="Total Applicants"
-          value={(snap?.totalApplicants ?? 0).toLocaleString()}
-          delta={loading ? "Loading…" : snap?.live ? undefined : "Demo data"}
+          value={(metrics?.totalApplicants ?? 0).toLocaleString()}
           tone="primary"
         />
         <StatCard
           label="New This Week"
-          value={snap?.newThisWeek ?? 0}
+          value={metrics?.newThisWeek ?? 0}
+          delta={metrics?.newThisWeek ? `+${metrics.newThisWeek}` : undefined}
           tone="success"
         />
         <StatCard
           label="Calls Scheduled"
-          value={snap?.callsScheduled ?? 0}
-          hint="Next 5 business days"
+          value={metrics?.callsScheduled ?? 0}
+          hint="Scheduled or confirmed"
         />
         <StatCard
           label="Enrolled"
-          value={snap?.enrolled ?? 0}
+          value={metrics?.enrolled ?? 0}
           tone="success"
         />
       </div>
@@ -115,8 +128,8 @@ function AdminOverviewInner() {
         />
         <CardBody>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {pipelineStages.map((stage) => {
-              const count = stageCount(stage.key);
+            {stages.map((stage) => {
+              const count = metrics?.stageCounts[stage.key] ?? 0;
               return (
                 <div
                   key={stage.key}
@@ -150,13 +163,18 @@ function AdminOverviewInner() {
             description="Where intake routes participants"
             action={
               <Badge tone="muted" size="sm">
-                {snap?.live ? "Live" : "Sample"}
+                All-time
               </Badge>
             }
           />
           <CardBody className="grid gap-4">
-            {(snap?.pathwayDistribution ?? []).map((p) => (
-              <DistRow key={p.label} label={p.label} value={p.pct} />
+            {(metrics?.pathwayDistribution ?? []).map((p) => (
+              <DistRow
+                key={p.label}
+                label={p.label}
+                value={p.value}
+                count={p.count}
+              />
             ))}
           </CardBody>
         </Card>
@@ -167,11 +185,12 @@ function AdminOverviewInner() {
             description="How applicants find us"
           />
           <CardBody className="grid gap-4">
-            {(snap?.sourceDistribution ?? []).map((p) => (
+            {(metrics?.sourceDistribution ?? []).map((p) => (
               <DistRow
                 key={p.label}
                 label={p.label}
-                value={p.pct}
+                value={p.value}
+                count={p.count}
                 accent="muted"
               />
             ))}
@@ -211,7 +230,17 @@ function AdminOverviewInner() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {(snap?.recent ?? []).map((p) => (
+              {recent.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-5 py-6 text-center text-[13px] text-ink-muted"
+                  >
+                    No applicants yet.
+                  </td>
+                </tr>
+              )}
+              {recent.map((p) => (
                 <tr key={p.id} className="hover:bg-canvas/50">
                   <Td>
                     <Link
@@ -225,14 +254,12 @@ function AdminOverviewInner() {
                     </div>
                   </Td>
                   <Td>
-                    <Badge tone={statusTone[p.status as ParticipantStatus] ?? "muted"}>
-                      {p.status}
-                    </Badge>
+                    <Badge tone={statusTone[p.status]}>{p.status}</Badge>
                   </Td>
                   <Td>{p.source}</Td>
-                  <Td className="text-ink-muted">{p.submittedAt}</Td>
+                  <Td className="text-ink-muted">{p.appliedAt || "—"}</Td>
                   <Td>
-                    {p.assignedAdvisor ?? (
+                    {p.assignedAdvisorName ?? (
                       <span className="text-ink-subtle italic">Unassigned</span>
                     )}
                   </Td>
@@ -246,16 +273,6 @@ function AdminOverviewInner() {
                   </Td>
                 </tr>
               ))}
-              {!loading && (snap?.recent ?? []).length === 0 ? (
-                <tr>
-                  <Td className="text-ink-subtle">No applicants yet.</Td>
-                  <Td />
-                  <Td />
-                  <Td />
-                  <Td />
-                  <Td />
-                </tr>
-              ) : null}
             </tbody>
           </table>
         </div>
@@ -264,20 +281,20 @@ function AdminOverviewInner() {
       <div className="mt-6 grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
-            title="Quarterly trend"
-            description="Applicants & enrollments by week"
+            title="Weekly submissions"
+            description="Applicants submitted in the last 8 weeks"
           />
           <CardBody>
-            <BarChart />
+            <BarChart rows={weeklyBuckets(participants)} />
           </CardBody>
         </Card>
         <Card>
           <CardHeader
             title="Reporting"
-            description="Send to partners"
+            description="Partner outcomes"
             action={
               <Badge tone="primary" dot>
-                Q2
+                Live
               </Badge>
             }
           />
@@ -291,13 +308,16 @@ function AdminOverviewInner() {
                   Aggregated outcomes report
                 </p>
                 <p className="text-ink-muted">
-                  Auto-sent to active partners on May 1.
+                  Pulls directly from Firestore — always current.
                 </p>
               </div>
             </div>
-            <button className="text-[13px] font-medium text-primary text-left">
-              Customize partner segments →
-            </button>
+            <Link
+              href="/portal/admin/partners"
+              className="text-[13px] font-medium text-primary"
+            >
+              Partner segment view →
+            </Link>
           </CardBody>
         </Card>
       </div>
@@ -308,21 +328,27 @@ function AdminOverviewInner() {
 function DistRow({
   label,
   value,
+  count,
   accent = "primary",
 }: {
   label: string;
   value: number;
+  count: number;
   accent?: "primary" | "muted";
 }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[13px] text-ink">{label}</span>
-        <span className="text-[12px] tabular text-ink-muted">{value}%</span>
+        <span className="text-[12px] tabular text-ink-muted">
+          {count} · {value}%
+        </span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-line overflow-hidden">
         <div
-          className={`h-full ${accent === "primary" ? "bg-primary" : "bg-ink-muted"}`}
+          className={`h-full ${
+            accent === "primary" ? "bg-primary" : "bg-ink-muted"
+          }`}
           style={{ width: `${value}%` }}
         />
       </div>
@@ -330,7 +356,13 @@ function DistRow({
   );
 }
 
-function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Th({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <th className={`px-5 py-3 font-semibold text-[12px] ${className}`}>
       {children}
@@ -341,28 +373,45 @@ function Td({
   children,
   className = "",
 }: {
-  children?: React.ReactNode;
+  children: React.ReactNode;
   className?: string;
 }) {
   return <td className={`px-5 py-3 align-top ${className}`}>{children}</td>;
 }
 
-function BarChart() {
-  const data = [
-    { w: "W1", apps: 64, enr: 14 },
-    { w: "W2", apps: 72, enr: 17 },
-    { w: "W3", apps: 88, enr: 22 },
-    { w: "W4", apps: 81, enr: 19 },
-    { w: "W5", apps: 96, enr: 24 },
-    { w: "W6", apps: 110, enr: 31 },
-    { w: "W7", apps: 102, enr: 28 },
-    { w: "W8", apps: 124, enr: 36 },
-  ];
-  const max = Math.max(...data.map((d) => d.apps));
+function weeklyBuckets(rows: ParticipantListItem[]) {
+  const buckets: { w: string; apps: number; enr: number }[] = [];
+  const now = new Date();
+  for (let i = 7; i >= 0; i--) {
+    const start = new Date(now);
+    start.setDate(now.getDate() - i * 7);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    const bucket = { w: `W${8 - i}`, apps: 0, enr: 0 };
+    for (const r of rows) {
+      if (!r.submittedAtISO) continue;
+      const t = new Date(r.submittedAtISO).getTime();
+      if (t >= start.getTime() && t < end.getTime()) {
+        bucket.apps += 1;
+        if (r.status === "Enrolled") bucket.enr += 1;
+      }
+    }
+    buckets.push(bucket);
+  }
+  return buckets;
+}
+
+function BarChart({
+  rows,
+}: {
+  rows: { w: string; apps: number; enr: number }[];
+}) {
+  const max = Math.max(1, ...rows.map((d) => d.apps));
   return (
     <div>
       <div className="flex items-end gap-3 h-44">
-        {data.map((d) => (
+        {rows.map((d) => (
           <div
             key={d.w}
             className="flex-1 flex flex-col items-center gap-1 min-w-0"

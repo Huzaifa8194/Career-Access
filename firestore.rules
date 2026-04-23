@@ -1,102 +1,150 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
+
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    function userRole() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
     }
 
-    function roleIs(role) {
-      return signedIn() && userDoc().data.role == role;
+    function isAdmin() {
+      return userRole() == 'admin';
+    }
+
+    function isAdvisor() {
+      return userRole() == 'advisor';
     }
 
     function isStaff() {
-      return roleIs("advisor") || roleIs("admin");
+      return isAdmin() || isAdvisor();
+    }
+
+    function userParticipantId() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.participantId
+        : null;
     }
 
     match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      allow create: if signedIn() && request.auth.uid == uid;
-      allow update: if signedIn() && (request.auth.uid == uid || roleIs("admin"));
-      allow delete: if false;
-    }
-
-    match /participants/{participantId} {
-      allow create: if true;
-      allow read: if isStaff() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow update: if isStaff() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow delete: if roleIs("admin");
-    }
-
-    match /applications/{applicationId} {
-      allow create: if true;
-      allow read: if isStaff() || (
-        signedIn() &&
-        get(/databases/$(database)/documents/participants/$(resource.data.participantId)).data.userId == request.auth.uid
+      allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
+      allow create: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.role in ['participant', 'advisor', 'admin'];
+      allow update: if isSignedIn() && (
+        (request.auth.uid == uid
+          && request.resource.data.role == resource.data.role)
+        || isAdmin()
       );
-      allow update: if isStaff();
-      allow delete: if roleIs("admin");
+      allow delete: if isAdmin();
     }
 
-    match /referrals/{referralId} {
-      allow create: if true;
-      allow read, update: if isStaff();
-      allow delete: if roleIs("admin");
+    match /participants/{pid} {
+      allow read: if isStaff()
+        || (isSignedIn() && (
+              resource.data.userId == request.auth.uid
+              || userParticipantId() == pid
+           ));
+
+      allow create: if isSignedIn()
+        && (
+          isStaff()
+          || request.resource.data.userId == request.auth.uid
+          || request.resource.data.userId == null
+        );
+
+      allow update: if isStaff()
+        || (isSignedIn() && (
+              resource.data.userId == request.auth.uid
+              || userParticipantId() == pid
+           ));
+
+      allow delete: if isAdmin();
     }
 
-    match /appointments/{appointmentId} {
-      allow create: if true;
-      allow read: if isStaff() || (
-        signedIn() &&
-        (
-          resource.data.createdBy == request.auth.uid ||
-          get(/databases/$(database)/documents/participants/$(resource.data.participantId)).data.userId == request.auth.uid
-        )
-      );
-      allow update: if isStaff();
-      allow delete: if roleIs("admin");
+    match /applications/{aid} {
+      allow read: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow create: if isSignedIn();
+      allow update, delete: if isStaff();
     }
 
-    match /tasks/{taskId} {
-      allow create, update: if isStaff();
-      allow read: if isStaff() || (
-        signedIn() &&
-        get(/databases/$(database)/documents/participants/$(resource.data.participantId)).data.userId == request.auth.uid
-      );
-      allow delete: if roleIs("admin");
-    }
-
-    match /notes/{noteId} {
-      allow create, read: if isStaff();
-      allow update, delete: if roleIs("admin");
-    }
-
-    match /documents/{documentId} {
-      allow create: if signedIn();
-      allow read: if isStaff() || (
-        signedIn() &&
-        get(/databases/$(database)/documents/participants/$(resource.data.participantId)).data.userId == request.auth.uid
-      );
-      allow update: if isStaff();
-      allow delete: if roleIs("admin");
-    }
-
-    match /messages/{messageId} {
-      allow create: if signedIn();
-      allow read: if isStaff() || (
-        signedIn() &&
-        get(/databases/$(database)/documents/participants/$(resource.data.participantId)).data.userId == request.auth.uid
-      );
-      allow update: if isStaff() || (signedIn() && resource.data.senderId == request.auth.uid);
-      allow delete: if roleIs("admin");
-    }
-
-    match /dashboard_metrics/{metricId} {
+    match /referrals/{rid} {
       allow read: if isStaff();
-      allow write: if roleIs("admin");
+      allow create: if true;
+      allow update, delete: if isStaff();
+    }
+
+    match /advisors/{aid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /appointments/{id} {
+      allow read: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow create: if true;
+      allow update: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{id} {
+      allow read: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow create, update, delete: if isStaff();
+    }
+
+    match /notes/{id} {
+      allow read: if isStaff();
+      allow create, update, delete: if isStaff();
+    }
+
+    match /documents/{id} {
+      allow read: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow create: if isSignedIn();
+      allow update: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow delete: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+    }
+
+    match /messages/{id} {
+      allow read: if isStaff()
+        || (isSignedIn()
+            && userParticipantId() == resource.data.participantId);
+      allow create: if isSignedIn()
+        && (
+          isStaff()
+          || userParticipantId() == request.resource.data.participantId
+        );
+      allow update: if isSignedIn()
+        && (
+          isStaff()
+          || userParticipantId() == resource.data.participantId
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /dashboard_metrics/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

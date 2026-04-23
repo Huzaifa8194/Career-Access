@@ -1,60 +1,60 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { ArrowRight, Check } from "@/components/icons";
 import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Checkbox } from "@/components/ui/Field";
-import { useAuth } from "@/lib/firebase/auth";
-
-function mapSignUpError(code: string | null | undefined) {
-  switch (code) {
-    case "auth/email-already-in-use":
-      return "An account with that email already exists.";
-    case "auth/invalid-email":
-      return "Please enter a valid email address.";
-    case "auth/weak-password":
-      return "Use at least 8 characters for your password.";
-    case "auth/network-request-failed":
-      return "Network error — check your connection.";
-    case "firestore/permission-denied":
-      return "Account created but profile write was blocked by Firestore rules. Deploy/update Firestore rules and try again.";
-    default:
-      return "We couldn't create your account. Please try again.";
-  }
-}
+import { friendlyAuthError, useAuth } from "@/lib/firebase/auth";
+import { fetchParticipantByEmail } from "@/lib/services/participants";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp, signingIn } = useAuth();
-  const [first, setFirst] = useState("");
-  const [last, setLast] = useState("");
+  const { user, signUp } = useAuth();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!agreed) {
-      setError("Please agree to the Terms before continuing.");
-      return;
+  useEffect(() => {
+    if (user && !submitted) {
+      router.replace("/portal/participant");
     }
+  }, [user, submitted, router]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     setError(null);
     try {
-      await signUp({
+      let participantId: string | undefined;
+      try {
+        const existing = await fetchParticipantByEmail(email);
+        if (existing) participantId = existing.id;
+      } catch {}
+      await signUp(
         email,
         password,
-        fullName: `${first.trim()} ${last.trim()}`.trim(),
-        role: "participant",
-      });
+        `${firstName} ${lastName}`.trim(),
+        "participant",
+        {
+          phone: phone || undefined,
+          participantId,
+        }
+      );
       setSubmitted(true);
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      setError(mapSignUpError(code));
+      setError(friendlyAuthError(err));
+      setSubmitting(false);
     }
   }
 
@@ -84,18 +84,16 @@ export default function SignUpPage() {
                   Account created
                 </h2>
                 <p className="mt-2 text-[14px] text-ink-muted leading-6">
-                  You can now view your pathway, message your advisor, and
-                  upload documents.
+                  You&apos;re signed in. Continue to your portal.
                 </p>
                 <div className="mt-6 grid gap-3">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/portal/participant")}
+                  <Link
+                    href="/portal/participant"
                     className="inline-flex h-11 items-center justify-center rounded-md bg-primary text-white font-medium text-[14px] hover:bg-primary-700"
                   >
                     Continue to your portal{" "}
                     <ArrowRight size={14} className="ml-2" />
-                  </button>
+                  </Link>
                   <Link
                     href="/apply"
                     className="text-[13px] font-medium text-primary hover:underline"
@@ -114,28 +112,28 @@ export default function SignUpPage() {
                   Set up your account
                 </h1>
                 <p className="mt-2 text-[14px] text-ink-muted leading-6">
-                  This is the same account you'll use to view your pathway,
+                  This is the same account you&apos;ll use to view your pathway,
                   message your advisor, and upload documents.
                 </p>
 
-                <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
+                <form className="mt-6 grid gap-5" onSubmit={onSubmit}>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <Field label="First name" required htmlFor="su-first">
                       <Input
                         id="su-first"
                         required
-                        value={first}
-                        onChange={(e) => setFirst(e.target.value)}
                         autoComplete="given-name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
                       />
                     </Field>
                     <Field label="Last name" required htmlFor="su-last">
                       <Input
                         id="su-last"
                         required
-                        value={last}
-                        onChange={(e) => setLast(e.target.value)}
                         autoComplete="family-name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
                       />
                     </Field>
                   </div>
@@ -144,10 +142,24 @@ export default function SignUpPage() {
                       id="su-email"
                       type="email"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
                       autoComplete="email"
                       placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label="Mobile phone"
+                    htmlFor="su-phone"
+                    hint="So your advisor can reach you. Optional but recommended."
+                  >
+                    <Input
+                      id="su-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="(617) 555-0123"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                     />
                   </Field>
                   <Field
@@ -161,9 +173,9 @@ export default function SignUpPage() {
                       type="password"
                       required
                       minLength={8}
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="new-password"
                     />
                   </Field>
 
@@ -175,22 +187,19 @@ export default function SignUpPage() {
                     description="We never sell your information. Your data is used only to deliver Career Access Hub services."
                   />
 
-                  {error ? (
-                    <p
-                      role="alert"
-                      className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
-                    >
+                  {error && (
+                    <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
                       {error}
-                    </p>
-                  ) : null}
+                    </div>
+                  )}
 
                   <Button
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={signingIn}
+                    disabled={submitting}
                   >
-                    {signingIn ? "Creating account…" : "Create account"}{" "}
+                    {submitting ? "Creating account…" : "Create account"}{" "}
                     <ArrowRight size={16} />
                   </Button>
                 </form>

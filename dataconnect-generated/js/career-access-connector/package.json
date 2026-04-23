@@ -1,8 +1,0 @@
-{
-  "name": "@dataconnect/generated",
-  "version": "0.0.0-stub",
-  "description": "Placeholder stub. Gets overwritten by `firebase dataconnect:sdk:generate`.",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "private": true
-}

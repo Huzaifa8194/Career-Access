@@ -1,3 +1,7 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   FlowShell,
   FlowSidebar,
@@ -6,13 +10,16 @@ import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Check, ArrowRight, Mail } from "@/components/icons";
-import Link from "next/link";
+import { referralFlow, type ReferralConfirmation } from "@/lib/flowState";
 
 const steps = [{ label: "Referral" }, { label: "Confirmation" }];
 
-export const metadata = { title: "Referral submitted" };
-
 export default function ReferConfirmationPage() {
+  const [data, setData] = useState<ReferralConfirmation | null>(null);
+  useEffect(() => {
+    setData(referralFlow.get());
+  }, []);
+
   return (
     <FlowShell
       steps={steps}
@@ -38,11 +45,14 @@ export default function ReferConfirmationPage() {
           </Badge>
         </div>
         <h1 className="mt-5 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-[1.05]">
-          Thanks — we'll take it from here.
+          Thanks{data?.organizationName ? `, ${data.organizationName}` : ""} — we&apos;ll take it from here.
         </h1>
         <p className="mt-3 text-[16px] text-ink-muted leading-7 max-w-xl">
-          We'll reach out to the applicant within two business days using the
-          contact details you provided. You'll get a status email once they've
+          We&apos;ll reach out to{" "}
+          {data?.applicantFirstName
+            ? `${data.applicantFirstName} ${data.applicantLastName}`
+            : "the applicant"}{" "}
+          within two business days. You&apos;ll get a status email once they&apos;ve
           been reached.
         </p>
 
@@ -52,7 +62,7 @@ export default function ReferConfirmationPage() {
               <Mail size={16} />
             </span>
             <h3 className="mt-3 text-[15px] font-semibold tracking-tight">
-              You'll hear from us
+              You&apos;ll hear from us
             </h3>
             <p className="mt-1 text-[13px] text-ink-muted leading-6">
               A status update lands in your inbox once the applicant has been

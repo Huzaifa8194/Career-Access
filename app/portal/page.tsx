@@ -1,13 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { ArrowRight, Compass, Users, ChartBar } from "@/components/icons";
 import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { useAuth } from "@/lib/firebase/auth";
+import { friendlyAuthError } from "@/lib/firebase/auth";
+import type { PortalRole } from "@/lib/firebase/types";
+
+const roleHome: Record<PortalRole, string> = {
+  participant: "/portal/participant",
+  advisor: "/portal/advisor",
+  admin: "/portal/admin",
+};
 
 const demoRoles = [
   {
@@ -33,65 +41,48 @@ const demoRoles = [
   },
 ];
 
-function mapAuthError(code: string | null | undefined): string {
-  switch (code) {
-    case "auth/invalid-credential":
-    case "auth/invalid-login-credentials":
-    case "auth/wrong-password":
-    case "auth/user-not-found":
-      return "Email or password is incorrect.";
-    case "auth/too-many-requests":
-      return "Too many attempts. Try again in a minute.";
-    case "auth/network-request-failed":
-      return "Network error — check your connection.";
-    case "auth/invalid-api-key":
-      return "Firebase API key/project config is invalid or mismatched.";
-    case "auth/user-token-expired":
-    case "auth/invalid-user-token":
-      return "Your old session token is invalid. Refresh and sign in again.";
-    default:
-      return "We couldn't sign you in. Please try again.";
-  }
-}
-
 export default function PortalSignInPage() {
   const router = useRouter();
-  const { signIn, signingIn, resetPassword } = useAuth();
+  const { user, profile, signIn, resetPassword } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    if (user && profile) {
+      router.replace(roleHome[profile.role] ?? "/portal/participant");
+    }
+  }, [user, profile, router]);
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     setError(null);
     setInfo(null);
     try {
-      const user = await signIn(email, password);
-      const target =
-        user.role === "admin"
-          ? "/portal/admin"
-          : user.role === "advisor"
-          ? "/portal/advisor"
-          : "/portal/participant";
-      router.push(target);
+      await signIn(email, password);
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      setError(mapAuthError(code));
+      setError(friendlyAuthError(err));
+      setSubmitting(false);
     }
   }
 
-  async function handleReset() {
+  async function onForgot() {
+    setError(null);
+    setInfo(null);
     if (!email) {
-      setError("Enter your email above, then tap Forgot password.");
+      setError("Enter your email above first, then click Forgot password.");
       return;
     }
-    setError(null);
     try {
       await resetPassword(email);
       setInfo("Password reset email sent. Check your inbox.");
-    } catch {
-      setError("Couldn't send reset email. Check the address and try again.");
+    } catch (err) {
+      setError(friendlyAuthError(err));
     }
   }
 
@@ -123,7 +114,7 @@ export default function PortalSignInPage() {
               Use the email you applied with. Staff use their assigned account.
             </p>
 
-            <form className="mt-7 grid gap-5" onSubmit={handleSubmit}>
+            <form className="mt-7 grid gap-5" onSubmit={onSubmit}>
               <Field label="Email address" required htmlFor="si-email">
                 <Input
                   id="si-email"
@@ -156,33 +147,31 @@ export default function PortalSignInPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={handleReset}
+                  onClick={onForgot}
                   className="text-[13px] font-medium text-primary hover:underline"
                 >
                   Forgot password?
                 </button>
               </div>
-              {error ? (
-                <p
-                  role="alert"
-                  className="rounded-md border border-danger/30 bg-danger-50 px-3 py-2 text-[13px] text-[#991B1B]"
-                >
+
+              {error && (
+                <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
                   {error}
-                </p>
-              ) : null}
-              {info ? (
-                <p className="rounded-md border border-action/20 bg-action-50 px-3 py-2 text-[13px] text-[#15803D]">
+                </div>
+              )}
+              {info && (
+                <div className="rounded-md border border-action/30 bg-action-50 p-3 text-[13px] text-action">
                   {info}
-                </p>
-              ) : null}
+                </div>
+              )}
+
               <Button
                 type="submit"
                 size="lg"
                 className="w-full"
-                disabled={signingIn}
+                disabled={submitting}
               >
-                {signingIn ? "Signing in…" : "Sign in"}{" "}
-                <ArrowRight size={16} />
+                {submitting ? "Signing in…" : "Sign in"} <ArrowRight size={16} />
               </Button>
             </form>
 
@@ -207,14 +196,14 @@ export default function PortalSignInPage() {
 
           <aside className="bg-white border border-line rounded-lg p-6 sm:p-7 shadow-[var(--shadow-card)] flex flex-col">
             <div className="inline-flex self-start items-center gap-2 rounded-full border border-warn/20 bg-warn-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-[#92400E]">
-              Demo environment
+              Demo preview
             </div>
             <h2 className="mt-3 text-[18px] font-semibold tracking-tight">
-              Preview any role
+              Preview by role
             </h2>
             <p className="mt-1 text-[13px] text-ink-muted leading-6">
-              In production, access is based on your signed-in account. While
-              the backend is being set up you can preview each role.
+              Roles are determined by the signed-in account. Preview any role
+              view below — protected pages still require sign-in.
             </p>
             <ul className="mt-5 grid gap-2 flex-1">
               {demoRoles.map((r) => (
@@ -232,7 +221,7 @@ export default function PortalSignInPage() {
                           {r.label}
                         </span>
                         <span className="block text-[12px] text-ink-subtle truncate">
-                          Demo user: {r.user}
+                          Example: {r.user}
                         </span>
                       </span>
                     </span>
@@ -244,7 +233,7 @@ export default function PortalSignInPage() {
               ))}
             </ul>
             <p className="mt-5 text-[12px] text-ink-subtle leading-5">
-              Live data appears once the Firebase backend is deployed.
+              Accounts, data, and documents are stored in Firebase.
             </p>
           </aside>
         </div>

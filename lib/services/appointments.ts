@@ -1,143 +1,156 @@
 import {
   addDoc,
-  collection,
-  doc,
   getDocs,
+  limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   where,
-  type Timestamp,
+  type Unsubscribe,
 } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/config";
-import { fetchMyParticipant } from "./participants";
+import { appointmentsCol } from "@/lib/firebase/firestore";
+import {
+  type AppointmentDoc,
+  type AppointmentStatus,
+  toDateISO,
+} from "@/lib/firebase/types";
+import { doc } from "firebase/firestore";
+import { getFirebaseDb } from "@/lib/firebase/config";
+import { COLLECTIONS } from "@/lib/firebase/types";
 
 export type AppointmentRow = {
   id: string;
+  participantId: string;
+  participantName: string | null;
+  advisorId: string | null;
+  advisorName: string | null;
   appointmentType: string;
-  scheduledAt: string;
+  scheduledAtISO: string | null;
+  scheduledDate: string;
+  scheduledTime: string;
   timezone: string;
-  status: string;
-  contactName?: string;
+  mode: "Video" | "Phone" | "In-person";
+  status: AppointmentStatus;
+};
+
+export type AppointmentInput = {
+  participantId?: string | null;
+  participantName?: string | null;
+  advisorId?: string | null;
+  advisorName?: string | null;
+  appointmentType: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  timezone?: string;
+  mode?: "Video" | "Phone" | "In-person";
   contactEmail?: string;
-  participant?: { id: string; firstName: string; lastName: string } | null;
-  advisor?: { id: string; fullName: string } | null;
-};
-
-export type AppointmentSubmit = {
-  contactName: string;
-  contactEmail: string;
   contactPhone?: string;
-  appointmentType: string;
-  scheduledAt: string; // ISO
-  timezone: string;
+  contactName?: string;
 };
 
-export async function submitAppointment(input: AppointmentSubmit) {
-  const participant = await fetchMyParticipant();
-  const id = getFirebaseAuth().currentUser?.uid ?? null;
-  const ref = await addDoc(collection(getFirebaseDb(), "appointments"), {
-    participantId: participant?._live ? participant.id : null,
-    advisorId: null,
-    contactName: input.contactName,
-    contactEmail: input.contactEmail,
-    contactPhone: input.contactPhone ?? null,
+function parseScheduled(dateStr: string, timeStr: string): Date {
+  const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  let hours = 0;
+  let mins = 0;
+  if (m) {
+    hours = parseInt(m[1], 10);
+    mins = parseInt(m[2], 10);
+    const ampm = (m[3] || "").toUpperCase();
+    if (ampm === "PM" && hours < 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+  }
+  const [y, mo, d] = dateStr.split("-").map((v) => parseInt(v, 10));
+  return new Date(y || 1970, (mo || 1) - 1, d || 1, hours, mins, 0, 0);
+}
+
+export async function submitAppointment(
+  input: AppointmentInput
+): Promise<string> {
+  const scheduled = parseScheduled(input.scheduledDate, input.scheduledTime);
+  const docData: AppointmentDoc & Record<string, unknown> = {
+    participantId: input.participantId ?? "",
+    participantName: input.participantName ?? input.contactName ?? null,
+    advisorId: input.advisorId ?? null,
+    advisorName: input.advisorName ?? null,
     appointmentType: input.appointmentType,
-    scheduledAt: input.scheduledAt,
-    timezone: input.timezone,
+    scheduledAt: Timestamp.fromDate(scheduled),
+    scheduledDate: input.scheduledDate,
+    scheduledTime: input.scheduledTime,
+    timezone: input.timezone ?? "ET",
+    mode: input.mode ?? "Video",
     status: "scheduled",
-    createdAt: serverTimestamp(),
-    createdBy: id,
-  });
-  return { id: ref.id, live: true };
+    createdAt: serverTimestamp() as unknown as AppointmentDoc["createdAt"],
+    contactEmail: input.contactEmail ?? null,
+    contactPhone: input.contactPhone ?? null,
+  };
+  const ref = await addDoc(appointmentsCol(), docData);
+  return ref.id;
 }
 
-export async function fetchMyAppointments(): Promise<{
-  rows: AppointmentRow[];
-  live: boolean;
-}> {
-  const uid = getFirebaseAuth().currentUser?.uid ?? "";
-  const participant = await fetchMyParticipant();
-  const constraints = participant?._live
-    ? query(
-        collection(getFirebaseDb(), "appointments"),
-        where("participantId", "==", participant.id),
-        orderBy("scheduledAt", "asc")
-      )
-    : query(
-        collection(getFirebaseDb(), "appointments"),
-        where("createdBy", "==", uid),
-        orderBy("scheduledAt", "asc")
-      );
-  const snap = await getDocs(constraints);
+function mapAppointment(id: string, data: AppointmentDoc): AppointmentRow {
   return {
-    rows: snap.docs.map((d) => {
-      const row = d.data() as {
-        appointmentType: string;
-        scheduledAt: string | Timestamp | Date;
-        timezone: string;
-        status: string;
-        contactName?: string;
-        contactEmail?: string;
-      };
-      const scheduledAt =
-        row.scheduledAt instanceof Date
-          ? row.scheduledAt.toISOString()
-          : typeof row.scheduledAt === "string"
-            ? row.scheduledAt
-            : row.scheduledAt?.toDate().toISOString();
-      return {
-        id: d.id,
-        appointmentType: row.appointmentType,
-        scheduledAt,
-        timezone: row.timezone,
-        status: row.status,
-        contactName: row.contactName,
-        contactEmail: row.contactEmail,
-      };
-    }),
-    live: true,
+    id,
+    participantId: data.participantId,
+    participantName: data.participantName ?? null,
+    advisorId: data.advisorId ?? null,
+    advisorName: data.advisorName ?? null,
+    appointmentType: data.appointmentType,
+    scheduledAtISO: toDateISO(data.scheduledAt),
+    scheduledDate: data.scheduledDate,
+    scheduledTime: data.scheduledTime,
+    timezone: data.timezone,
+    mode: data.mode ?? "Video",
+    status: data.status,
   };
 }
 
-export async function fetchAllAppointments(): Promise<{
-  rows: AppointmentRow[];
-  live: boolean;
-}> {
+export async function fetchUpcomingAppointmentsForParticipant(
+  participantId: string,
+  max = 25
+): Promise<AppointmentRow[]> {
   const snap = await getDocs(
-    query(collection(getFirebaseDb(), "appointments"), orderBy("scheduledAt", "asc"))
+    query(
+      appointmentsCol(),
+      where("participantId", "==", participantId),
+      orderBy("scheduledAt", "asc"),
+      limit(max)
+    )
   );
-  return {
-    rows: snap.docs.map((d) => {
-      const row = d.data() as {
-        appointmentType: string;
-        scheduledAt: string | Timestamp | Date;
-        timezone: string;
-        status: string;
-      };
-      const scheduledAt =
-        row.scheduledAt instanceof Date
-          ? row.scheduledAt.toISOString()
-          : typeof row.scheduledAt === "string"
-            ? row.scheduledAt
-            : row.scheduledAt?.toDate().toISOString();
-      return {
-        id: d.id,
-        appointmentType: row.appointmentType,
-        scheduledAt,
-        timezone: row.timezone,
-        status: row.status,
-      };
-    }),
-    live: true,
-  };
+  return snap.docs.map((d) => mapAppointment(d.id, d.data() as AppointmentDoc));
 }
 
-export async function mutateAppointmentStatus(id: string, status: string) {
-  await updateDoc(doc(getFirebaseDb(), "appointments", id), {
+export function subscribeAppointmentsForParticipant(
+  participantId: string,
+  cb: (rows: AppointmentRow[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      appointmentsCol(),
+      where("participantId", "==", participantId),
+      orderBy("scheduledAt", "asc")
+    ),
+    (snap) => {
+      cb(snap.docs.map((d) => mapAppointment(d.id, d.data() as AppointmentDoc)));
+    },
+    () => cb([])
+  );
+}
+
+export async function countScheduledAppointments(): Promise<number> {
+  const snap = await getDocs(
+    query(appointmentsCol(), where("status", "in", ["scheduled", "confirmed"]))
+  );
+  return snap.size;
+}
+
+export async function updateAppointmentStatus(
+  id: string,
+  status: AppointmentStatus
+): Promise<void> {
+  await updateDoc(doc(getFirebaseDb(), COLLECTIONS.appointments, id), {
     status,
-    updatedAt: serverTimestamp(),
   });
-  return { error: null, live: true };
 }
