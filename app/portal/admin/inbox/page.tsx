@@ -43,6 +43,10 @@ function AdminInbox() {
   const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
   const [selectedThreadParticipantId, setSelectedThreadParticipantId] = useState<string | null>(null);
   const [assigningParticipantId, setAssigningParticipantId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [activeLane, setActiveLane] = useState<"all" | "contact" | "bookings" | "unassigned">(
+    "all"
+  );
 
   useEffect(() => {
     const a = subscribeRecentContactInquiries(setContactInquiries, 30);
@@ -82,39 +86,111 @@ function AdminInbox() {
     ? participantById.get(selectedThreadParticipantId) ?? null
     : null;
 
+  const term = search.trim().toLowerCase();
+  const filteredInquiries = useMemo(
+    () =>
+      contactInquiries.filter((q) =>
+        [q.name, q.email, q.role, q.message].join(" ").toLowerCase().includes(term)
+      ),
+    [contactInquiries, term]
+  );
+  const filteredBookings = useMemo(
+    () =>
+      bookings.filter((b) =>
+        [
+          b.contactName,
+          b.participantName,
+          b.contactEmail,
+          b.appointmentType,
+          b.scheduledDate,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      ),
+    [bookings, term]
+  );
+  const filteredUnassignedThreads = useMemo(
+    () =>
+      unassignedThreads.filter((m) => {
+        const p = participantById.get(m.participantId);
+        const name = p ? `${p.firstName} ${p.lastName}` : m.senderName;
+        return [name, p?.email, m.body].filter(Boolean).join(" ").toLowerCase().includes(term);
+      }),
+    [unassignedThreads, participantById, term]
+  );
+
   return (
     <PortalShell
       role="admin"
       title="Inbox & bookings"
       subtitle="Live queue from /contact and /book submissions."
     >
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex items-center gap-2">
+          <LaneButton
+            label="All"
+            count={filteredInquiries.length + filteredBookings.length + filteredUnassignedThreads.length}
+            active={activeLane === "all"}
+            onClick={() => setActiveLane("all")}
+          />
+          <LaneButton
+            label="Contact"
+            count={filteredInquiries.length}
+            active={activeLane === "contact"}
+            onClick={() => setActiveLane("contact")}
+          />
+          <LaneButton
+            label="Bookings"
+            count={filteredBookings.length}
+            active={activeLane === "bookings"}
+            onClick={() => setActiveLane("bookings")}
+          />
+          <LaneButton
+            label="Unassigned Msgs"
+            count={filteredUnassignedThreads.length}
+            active={activeLane === "unassigned"}
+            onClick={() => setActiveLane("unassigned")}
+          />
+        </div>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search all queues..."
+          className="h-9 w-full max-w-sm rounded-md border border-line bg-white px-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+      </div>
+
+      {(activeLane === "all" || activeLane === "contact" || activeLane === "bookings") && (
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader
             title="Contact inquiries"
             description="Incoming messages from /contact"
-            action={<Badge tone="info">{contactInquiries.length}</Badge>}
+            action={<Badge tone="info">{filteredInquiries.length}</Badge>}
           />
-          <CardBody className="grid gap-3">
-            {contactInquiries.length === 0 ? (
+          <CardBody className="grid gap-2 max-h-[420px] overflow-y-auto">
+            {filteredInquiries.length === 0 ? (
               <p className="text-[13px] text-ink-muted">No inquiries yet.</p>
             ) : (
-              contactInquiries.map((q) => (
+              filteredInquiries.map((q) => (
                 <button
                   key={q.id}
                   type="button"
                   onClick={() => setSelectedInquiry(q)}
-                  className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                  className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[14px] font-medium text-ink">{q.name}</p>
+                    <p className="text-[13px] font-medium text-ink">{q.name}</p>
                     <Badge tone="muted" size="sm">
                       {q.status}
                     </Badge>
                   </div>
                   <p className="mt-1 text-[12px] text-ink-subtle">{q.email}</p>
-                  <p className="mt-1 text-[12px] text-ink-subtle">{q.role}</p>
-                  <p className="mt-2 text-[13px] text-ink-muted whitespace-pre-wrap">
+                  <p className="mt-1 text-[11px] text-ink-subtle">{q.role}</p>
+                  <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">
                     {q.message}
                   </p>
                 </button>
@@ -127,21 +203,21 @@ function AdminInbox() {
           <CardHeader
             title="Booked appointments"
             description="Incoming bookings from /book"
-            action={<Badge tone="primary">{bookings.length}</Badge>}
+            action={<Badge tone="primary">{filteredBookings.length}</Badge>}
           />
-          <CardBody className="grid gap-3">
-            {bookings.length === 0 ? (
+          <CardBody className="grid gap-2 max-h-[420px] overflow-y-auto">
+            {filteredBookings.length === 0 ? (
               <p className="text-[13px] text-ink-muted">No bookings yet.</p>
             ) : (
-              bookings.map((b) => (
+              filteredBookings.map((b) => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => setSelectedBooking(b)}
-                  className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                  className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[14px] font-medium text-ink">
+                    <p className="text-[13px] font-medium text-ink">
                       {b.contactName || b.participantName || "Unknown"}
                     </p>
                     <Badge tone="warn" size="sm">
@@ -154,28 +230,30 @@ function AdminInbox() {
                   <p className="mt-1 text-[12px] text-ink-subtle">
                     {b.contactEmail || "No email"}
                   </p>
-                  <p className="mt-2 text-[13px] text-ink-muted">{b.appointmentType}</p>
+                  <p className="mt-1.5 text-[12px] text-ink-muted">{b.appointmentType}</p>
                 </button>
               ))
             )}
           </CardBody>
         </Card>
       </div>
+      )}
 
-      <div className="mt-5">
+      {(activeLane === "all" || activeLane === "unassigned") && (
+      <div className="mt-4">
         <Card>
           <CardHeader
             title="Unassigned participant messages"
             description="Participant threads waiting for advisor assignment"
-            action={<Badge tone="warn">{unassignedThreads.length}</Badge>}
+            action={<Badge tone="warn">{filteredUnassignedThreads.length}</Badge>}
           />
-          <CardBody className="grid gap-3">
-            {unassignedThreads.length === 0 ? (
+          <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
+            {filteredUnassignedThreads.length === 0 ? (
               <p className="text-[13px] text-ink-muted">
                 No unassigned participant threads right now.
               </p>
             ) : (
-              unassignedThreads.map((m) => {
+              filteredUnassignedThreads.map((m) => {
                 const p = participantById.get(m.participantId);
                 const participantName = p
                   ? `${p.firstName} ${p.lastName}`
@@ -185,10 +263,10 @@ function AdminInbox() {
                     key={m.id}
                     type="button"
                     onClick={() => setSelectedThreadParticipantId(m.participantId)}
-                    className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                    className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[14px] font-medium text-ink">{participantName}</p>
+                      <p className="text-[13px] font-medium text-ink">{participantName}</p>
                       <Badge tone="warn" size="sm">
                         Unassigned
                       </Badge>
@@ -196,7 +274,7 @@ function AdminInbox() {
                     <p className="mt-1 text-[12px] text-ink-subtle">
                       {p?.email || "No email"}
                     </p>
-                    <p className="mt-2 text-[13px] text-ink-muted line-clamp-2">{m.body}</p>
+                    <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">{m.body}</p>
                   </button>
                 );
               })
@@ -204,6 +282,7 @@ function AdminInbox() {
           </CardBody>
         </Card>
       </div>
+      )}
 
       <DetailModal
         open={!!selectedInquiry}
@@ -326,5 +405,32 @@ function AdminInbox() {
         )}
       </DetailModal>
     </PortalShell>
+  );
+}
+
+function LaneButton({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "h-8 rounded-md border px-2.5 text-[12px] font-medium inline-flex items-center gap-2",
+        active
+          ? "border-primary bg-primary text-white"
+          : "border-line bg-white text-ink-muted hover:text-ink",
+      ].join(" ")}
+    >
+      {label}
+      <span className={active ? "text-white/90" : "text-ink-subtle"}>{count}</span>
+    </button>
   );
 }

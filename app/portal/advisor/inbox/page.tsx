@@ -53,6 +53,10 @@ function AdvisorInbox() {
   const [selectedInquiry, setSelectedInquiry] = useState<ContactInquiryRow | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
+  const [search, setSearch] = useState("");
+  const [activeLane, setActiveLane] = useState<"all" | "threads" | "contact" | "bookings">(
+    "all"
+  );
 
   useEffect(() => {
     const a = subscribeAllThreads(setMessages);
@@ -128,6 +132,38 @@ function AdvisorInbox() {
   }, [visibleMessages, visibleParticipants, user]);
 
   const unreadCount = threads.filter((t) => t.unread).length;
+  const term = search.trim().toLowerCase();
+  const filteredThreads = useMemo(
+    () =>
+      threads.filter((t) =>
+        [t.participantName, t.pathway, t.preview].join(" ").toLowerCase().includes(term)
+      ),
+    [threads, term]
+  );
+  const filteredContactInquiries = useMemo(
+    () =>
+      contactInquiries.filter((q) =>
+        [q.name, q.email, q.role, q.message].join(" ").toLowerCase().includes(term)
+      ),
+    [contactInquiries, term]
+  );
+  const filteredBookings = useMemo(
+    () =>
+      visibleBookings.filter((b) =>
+        [
+          b.contactName,
+          b.participantName,
+          b.contactEmail,
+          b.appointmentType,
+          b.scheduledDate,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      ),
+    [visibleBookings, term]
+  );
 
   return (
     <PortalShell
@@ -135,33 +171,70 @@ function AdvisorInbox() {
       title="Inbox"
       subtitle="Direct participant threads plus fresh contact and booking submissions."
     >
-      <div className="mb-6 grid gap-5 lg:grid-cols-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex items-center gap-2">
+          <LaneButton
+            label="All"
+            count={filteredThreads.length + filteredContactInquiries.length + filteredBookings.length}
+            active={activeLane === "all"}
+            onClick={() => setActiveLane("all")}
+          />
+          <LaneButton
+            label="Threads"
+            count={filteredThreads.length}
+            active={activeLane === "threads"}
+            onClick={() => setActiveLane("threads")}
+          />
+          <LaneButton
+            label="Contact"
+            count={filteredContactInquiries.length}
+            active={activeLane === "contact"}
+            onClick={() => setActiveLane("contact")}
+          />
+          <LaneButton
+            label="Bookings"
+            count={filteredBookings.length}
+            active={activeLane === "bookings"}
+            onClick={() => setActiveLane("bookings")}
+          />
+        </div>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search threads, names, messages..."
+          className="h-9 w-full max-w-sm rounded-md border border-line bg-white px-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+      </div>
+
+      {(activeLane === "all" || activeLane === "contact" || activeLane === "bookings") && (
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader
             title="Recent contact form submissions"
             description="Saved from /contact"
-            action={<Badge tone="info">{contactInquiries.length}</Badge>}
+            action={<Badge tone="info">{filteredContactInquiries.length}</Badge>}
           />
-          <CardBody className="grid gap-3">
-            {contactInquiries.length === 0 ? (
+          <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
+            {filteredContactInquiries.length === 0 ? (
               <p className="text-[13px] text-ink-muted">No inquiries yet.</p>
             ) : (
-              contactInquiries.map((q) => (
+              filteredContactInquiries.map((q) => (
                 <button
                   key={q.id}
                   type="button"
                   onClick={() => setSelectedInquiry(q)}
-                  className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                  className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[14px] font-medium text-ink">{q.name}</p>
+                    <p className="text-[13px] font-medium text-ink">{q.name}</p>
                     <Badge tone="muted" size="sm">
                       {q.createdAtISO ? timeAgo(q.createdAtISO) : "Just now"}
                     </Badge>
                   </div>
                   <p className="mt-1 text-[12px] text-ink-subtle">{q.email}</p>
                   <p className="mt-1 text-[12px] text-ink-subtle">{q.role}</p>
-                  <p className="mt-2 text-[13px] text-ink-muted line-clamp-2">
+                  <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">
                     {q.message}
                   </p>
                 </button>
@@ -174,21 +247,21 @@ function AdvisorInbox() {
           <CardHeader
             title="Recent advising call bookings"
             description="Submitted from /book"
-            action={<Badge tone="primary">{visibleBookings.length}</Badge>}
+            action={<Badge tone="primary">{filteredBookings.length}</Badge>}
           />
-          <CardBody className="grid gap-3">
-            {visibleBookings.length === 0 ? (
+          <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
+            {filteredBookings.length === 0 ? (
               <p className="text-[13px] text-ink-muted">No bookings yet.</p>
             ) : (
-              visibleBookings.map((b) => (
+              filteredBookings.map((b) => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => setSelectedBooking(b)}
-                  className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                  className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[14px] font-medium text-ink">
+                    <p className="text-[13px] font-medium text-ink">
                       {b.contactName || b.participantName || "Unknown participant"}
                     </p>
                     <Badge tone="warn" size="sm">
@@ -201,14 +274,16 @@ function AdvisorInbox() {
                   <p className="mt-1 text-[12px] text-ink-subtle">
                     {b.contactEmail || "No email provided"}
                   </p>
-                  <p className="mt-2 text-[13px] text-ink-muted">{b.appointmentType}</p>
+                  <p className="mt-1.5 text-[12px] text-ink-muted">{b.appointmentType}</p>
                 </button>
               ))
             )}
           </CardBody>
         </Card>
       </div>
+      )}
 
+      {(activeLane === "all" || activeLane === "threads") && (
       <Card className="overflow-hidden">
         <CardHeader
           title="Threads"
@@ -216,18 +291,18 @@ function AdvisorInbox() {
           action={<Badge tone="warn">{unreadCount} unread</Badge>}
         />
         <CardBody className="p-0">
-          {threads.length === 0 ? (
+          {filteredThreads.length === 0 ? (
             <div className="p-6 text-[13px] text-ink-muted">
               No messages yet.
             </div>
           ) : (
-            <ul className="divide-y divide-line">
-              {threads.map((t) => (
+            <ul className="divide-y divide-line max-h-[460px] overflow-y-auto">
+              {filteredThreads.map((t) => (
                 <li key={t.participantId}>
                   <button
                     type="button"
                     onClick={() => setSelectedThread(t)}
-                    className="w-full flex items-start gap-4 p-5 hover:bg-canvas/40 text-left"
+                    className="w-full flex items-start gap-3 px-4 py-3 hover:bg-canvas/40 text-left"
                   >
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
                       {t.participantName
@@ -239,7 +314,7 @@ function AdvisorInbox() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-[14px] font-medium text-ink">
+                        <span className="text-[13px] font-medium text-ink">
                           {t.participantName}
                         </span>
                         <span className="text-[12px] text-ink-subtle">
@@ -249,7 +324,7 @@ function AdvisorInbox() {
                       <div className="text-[12px] text-ink-subtle">
                         {t.pathway}
                       </div>
-                      <p className="mt-1 text-[14px] text-ink-muted line-clamp-1">
+                      <p className="mt-1 text-[12px] text-ink-muted line-clamp-1">
                         {t.preview}
                       </p>
                     </div>
@@ -263,6 +338,7 @@ function AdvisorInbox() {
           )}
         </CardBody>
       </Card>
+      )}
 
       <DetailModal
         open={!!selectedInquiry}
@@ -354,6 +430,33 @@ function AdvisorInbox() {
         )}
       </DetailModal>
     </PortalShell>
+  );
+}
+
+function LaneButton({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "h-8 rounded-md border px-2.5 text-[12px] font-medium inline-flex items-center gap-2",
+        active
+          ? "border-primary bg-primary text-white"
+          : "border-line bg-white text-ink-muted hover:text-ink",
+      ].join(" ")}
+    >
+      {label}
+      <span className={active ? "text-white/90" : "text-ink-subtle"}>{count}</span>
+    </button>
   );
 }
 
