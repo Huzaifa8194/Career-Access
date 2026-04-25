@@ -1,5 +1,6 @@
 import {
   addDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -101,4 +102,22 @@ export async function markMessageRead(id: string): Promise<void> {
   await updateDoc(doc(getFirebaseDb(), COLLECTIONS.messages, id), {
     read: true,
   });
+}
+
+export async function reassignThreadParticipantKey(
+  oldParticipantKey: string,
+  newParticipantId: string
+): Promise<void> {
+  if (!oldParticipantKey || !newParticipantId || oldParticipantKey === newParticipantId) return;
+  const snap = await getDocs(
+    query(messagesCol(), where("participantId", "==", oldParticipantKey))
+  );
+  await Promise.all(
+    snap.docs.map((d) =>
+      updateDoc(doc(getFirebaseDb(), COLLECTIONS.messages, d.id), {
+        participantId: newParticipantId,
+        threadId: newParticipantId,
+      })
+    )
+  );
 }

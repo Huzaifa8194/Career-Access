@@ -16,7 +16,11 @@ import {
   type AppointmentRow,
   updateAppointmentStatus,
 } from "@/lib/services/appointments";
-import { subscribeAllThreads, type MessageRow } from "@/lib/services/messages";
+import {
+  subscribeAllThreads,
+  type MessageRow,
+  reassignThreadParticipantKey,
+} from "@/lib/services/messages";
 import {
   assignAdvisor,
   subscribeParticipants,
@@ -43,6 +47,9 @@ function AdminInbox() {
   const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
   const [selectedThreadParticipantId, setSelectedThreadParticipantId] = useState<string | null>(null);
   const [assigningParticipantId, setAssigningParticipantId] = useState<string | null>(null);
+  const [linkTargetParticipantId, setLinkTargetParticipantId] = useState("");
+  const [linkingThread, setLinkingThread] = useState(false);
+  const [threadActionError, setThreadActionError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [activeLane, setActiveLane] = useState<
@@ -570,7 +577,11 @@ function AdminInbox() {
 
       <DetailModal
         open={!!selectedThreadParticipantId}
-        onClose={() => setSelectedThreadParticipantId(null)}
+        onClose={() => {
+          setSelectedThreadParticipantId(null);
+          setLinkTargetParticipantId("");
+          setThreadActionError(null);
+        }}
         title="Thread details"
         subtitle="Assign advisor and review full conversation transcript"
       >
@@ -600,6 +611,7 @@ function AdminInbox() {
                     onChange={async (e) => {
                       const nextId = e.target.value || null;
                       const match = advisors.find((a) => a.id === nextId);
+                      setThreadActionError(null);
                       setAssigningParticipantId(selectedThreadParticipant.id);
                       try {
                         await assignAdvisor(
@@ -608,6 +620,7 @@ function AdminInbox() {
                           match?.fullName ?? null
                         );
                       } catch {
+                        setThreadActionError("Could not assign advisor. Please try again.");
                       } finally {
                         setAssigningParticipantId(null);
                       }
@@ -625,9 +638,56 @@ function AdminInbox() {
               </div>
             </>
           ) : (
-            <div className="rounded-md border border-warn/40 bg-warn-50/40 p-3 text-[13px] text-ink-muted">
-              No linked participant record for this thread yet. Messages are visible, but assignment
-              requires participant linkage.
+            <div className="rounded-md border border-warn/40 bg-warn-50/40 p-3 text-[13px] text-ink-muted grid gap-3">
+              <p>
+                No linked participant record for this thread yet. Link this thread to a participant,
+                then assign advisor.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={linkTargetParticipantId}
+                  onChange={(e) => setLinkTargetParticipantId(e.target.value)}
+                  className="h-9 min-w-[280px] rounded-md border border-line bg-white px-2 text-[13px]"
+                >
+                  <option value="">Select participant to link</option>
+                  {participants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.firstName} {p.lastName} ({p.email || "no-email"})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!linkTargetParticipantId || linkingThread}
+                  onClick={async () => {
+                    if (!selectedThreadParticipantId || !linkTargetParticipantId) return;
+                    setThreadActionError(null);
+                    setLinkingThread(true);
+                    try {
+                      await reassignThreadParticipantKey(
+                        selectedThreadParticipantId,
+                        linkTargetParticipantId
+                      );
+                      setSelectedThreadParticipantId(linkTargetParticipantId);
+                    } catch {
+                      setThreadActionError(
+                        "Could not link this thread to participant. Please retry."
+                      );
+                    } finally {
+                      setLinkingThread(false);
+                    }
+                  }}
+                  className="h-9 rounded-md border border-primary bg-primary px-3 text-[12px] font-medium text-white disabled:opacity-60"
+                >
+                  {linkingThread ? "Linking..." : "Link thread"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {threadActionError && (
+            <div className="rounded-md border border-danger/30 bg-danger-50 p-2.5 text-[12px] text-danger">
+              {threadActionError}
             </div>
           )}
 
