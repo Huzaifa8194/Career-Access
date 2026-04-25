@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Compass, Users, ChartBar } from "@/components/icons";
+import { ArrowRight } from "@/components/icons";
 import { Brand } from "@/components/site/Brand";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
@@ -16,30 +16,6 @@ const roleHome: Record<PortalRole, string> = {
   advisor: "/portal/advisor",
   admin: "/portal/admin",
 };
-
-const demoRoles = [
-  {
-    id: "participant",
-    href: "/portal/participant",
-    icon: <Compass size={14} />,
-    label: "Participant",
-    user: "Jordan Hayes",
-  },
-  {
-    id: "advisor",
-    href: "/portal/advisor",
-    icon: <Users size={14} />,
-    label: "Advisor",
-    user: "Maya Robinson",
-  },
-  {
-    id: "admin",
-    href: "/portal/admin",
-    icon: <ChartBar size={14} />,
-    label: "Admin",
-    user: "Aisha Bennett",
-  },
-];
 
 export default function PortalSignInPage() {
   const router = useRouter();
@@ -101,7 +77,7 @@ export default function PortalSignInPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-5 py-12">
-        <div className="w-full max-w-5xl grid gap-8 lg:grid-cols-[1.1fr_1fr] items-stretch">
+        <div className="w-full max-w-xl">
           <div className="bg-white border border-line rounded-lg p-7 sm:p-9 shadow-[var(--shadow-card)]">
             <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-ink-subtle">
               <span className="h-1.5 w-1.5 rounded-full bg-action" />
@@ -193,49 +169,6 @@ export default function PortalSignInPage() {
               .
             </div>
           </div>
-
-          <aside className="bg-white border border-line rounded-lg p-6 sm:p-7 shadow-[var(--shadow-card)] flex flex-col">
-            <div className="inline-flex self-start items-center gap-2 rounded-full border border-warn/20 bg-warn-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-[#92400E]">
-              Demo preview
-            </div>
-            <h2 className="mt-3 text-[18px] font-semibold tracking-tight">
-              Preview by role
-            </h2>
-            <p className="mt-1 text-[13px] text-ink-muted leading-6">
-              Roles are determined by the signed-in account. Preview any role
-              view below — protected pages still require sign-in.
-            </p>
-            <ul className="mt-5 grid gap-2 flex-1">
-              {demoRoles.map((r) => (
-                <li key={r.id}>
-                  <Link
-                    href={r.href}
-                    className="group flex items-center justify-between gap-3 rounded-md border border-line bg-white p-3 hover:border-primary/40 transition-colors"
-                  >
-                    <span className="flex items-center gap-3 min-w-0">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-primary">
-                        {r.icon}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-[14px] font-medium text-ink">
-                          {r.label}
-                        </span>
-                        <span className="block text-[12px] text-ink-subtle truncate">
-                          Example: {r.user}
-                        </span>
-                      </span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-primary opacity-80 group-hover:opacity-100">
-                      Enter <ArrowRight size={12} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-5 text-[12px] text-ink-subtle leading-5">
-              Accounts, data, and documents are stored in Firebase.
-            </p>
-          </aside>
         </div>
       </main>
     </div>

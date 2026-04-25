@@ -35,7 +35,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-5 lg:px-8 pb-12">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <Brand />
+            <Brand markOnly size="sm" />
             <p className="mt-4 text-[13px] text-ink-subtle leading-6 max-w-xs">
               A workforce navigation service for adult learners across Bergen,
               Passaic, and Hudson Counties in New Jersey. Free and
@@ -72,8 +72,8 @@ export function Footer() {
         </div>
         <div className="mt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-line pt-6 text-[12px] text-ink-subtle">
           <span>
-            © {new Date().getFullYear()} Career Access Hub by EmployReady
-            Partners. All rights reserved.
+            © {new Date().getFullYear()} EmployReady Partners. All rights
+            reserved.
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-action" />

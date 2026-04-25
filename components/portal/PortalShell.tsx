@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import Image from "next/image";
 import {
   Bell,
   Search,
@@ -20,6 +19,7 @@ import {
   ChevronDown,
   Compass,
 } from "@/components/icons";
+import { Brand } from "@/components/site/Brand";
 import { useAuth } from "@/lib/firebase/auth";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
@@ -84,6 +84,11 @@ const roleNav: Record<string, { label: string; items: NavItem[] }> = {
         href: "/portal/admin/tasks",
         label: "Tasks & content",
         icon: <Inbox size={16} />,
+      },
+      {
+        href: "/portal/admin/users",
+        label: "User management",
+        icon: <Users size={16} />,
       },
     ],
   },
@@ -161,30 +166,7 @@ export function PortalShell({
           ].join(" ")}
         >
           <div className="px-5 py-4 border-b border-line">
-            <Link
-              href="/"
-              className="flex items-center gap-2.5 min-w-0"
-              aria-label="Career Access Hub — Home"
-            >
-              <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md">
-                <Image
-                  src="/logo.png"
-                  alt=""
-                  fill
-                  priority
-                  sizes="36px"
-                  className="object-contain scale-[1.18]"
-                />
-              </span>
-              <div className="min-w-0 leading-tight">
-                <div className="text-[14px] font-semibold tracking-tight truncate">
-                  Career Access Hub
-                </div>
-                <div className="text-[10.5px] uppercase tracking-[0.1em] text-ink-subtle truncate">
-                  {nav.label} portal
-                </div>
-              </div>
-            </Link>
+            <Brand markOnly size="sm" className="max-w-full" />
           </div>
 
           <RoleSwitcher current={role} />
