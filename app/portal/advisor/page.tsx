@@ -64,17 +64,22 @@ function AdvisorPipeline() {
     };
   }, []);
 
-  const myAdvisorId = useMemo(() => {
-    if (profile?.role !== "advisor") return null;
-    if (!user?.uid) return null;
-    return advisors.find((a) => a.userId === user.uid)?.id ?? null;
+  const myAdvisorIds = useMemo(() => {
+    if (profile?.role !== "advisor") return new Set<string>();
+    if (!user?.uid) return new Set<string>();
+    const ids = advisors
+      .filter((a) => a.userId === user.uid)
+      .map((a) => a.id);
+    ids.push(user.uid);
+    return new Set(ids);
   }, [advisors, user?.uid, profile?.role]);
 
   const visibleParticipants = useMemo(() => {
     if (profile?.role !== "advisor") return participants;
-    if (!myAdvisorId) return [];
-    return participants.filter((p) => p.assignedAdvisorId === myAdvisorId);
-  }, [participants, profile?.role, myAdvisorId]);
+    return participants.filter(
+      (p) => !!p.assignedAdvisorId && myAdvisorIds.has(p.assignedAdvisorId)
+    );
+  }, [participants, profile?.role, myAdvisorIds]);
 
   const stalled = useMemo(
     () => visibleParticipants.filter((p) => p.risk && p.risk !== "ok"),

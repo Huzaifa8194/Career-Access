@@ -54,10 +54,13 @@ function AdvisorParticipantView({ id }: { id: string }) {
     };
   }, [id]);
 
-  const myAdvisorId =
+  const myAdvisorIds =
     profile?.role === "advisor" && user?.uid
-      ? advisors.find((a) => a.userId === user.uid)?.id ?? null
-      : null;
+      ? new Set([
+          ...advisors.filter((a) => a.userId === user.uid).map((a) => a.id),
+          user.uid,
+        ])
+      : new Set<string>();
 
   if (loading) {
     return (
@@ -82,7 +85,8 @@ function AdvisorParticipantView({ id }: { id: string }) {
 
   if (
     profile?.role === "advisor" &&
-    participant.assignedAdvisorId !== myAdvisorId
+    (!participant.assignedAdvisorId ||
+      !myAdvisorIds.has(participant.assignedAdvisorId))
   ) {
     return (
       <PortalShell role="advisor" title="Access restricted">

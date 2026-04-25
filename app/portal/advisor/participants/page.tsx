@@ -63,17 +63,20 @@ function AdvisorParticipants() {
     };
   }, []);
 
-  const myAdvisorId = useMemo(() => {
-    if (profile?.role !== "advisor") return null;
-    if (!user?.uid) return null;
-    return advisors.find((a) => a.userId === user.uid)?.id ?? null;
+  const myAdvisorIds = useMemo(() => {
+    if (profile?.role !== "advisor") return new Set<string>();
+    if (!user?.uid) return new Set<string>();
+    const ids = advisors
+      .filter((a) => a.userId === user.uid)
+      .map((a) => a.id);
+    ids.push(user.uid);
+    return new Set(ids);
   }, [advisors, user?.uid, profile?.role]);
 
   const visibleRows = useMemo(() => {
     if (profile?.role !== "advisor") return rows;
-    if (!myAdvisorId) return [];
-    return rows.filter((p) => p.assignedAdvisorId === myAdvisorId);
-  }, [rows, profile?.role, myAdvisorId]);
+    return rows.filter((p) => !!p.assignedAdvisorId && myAdvisorIds.has(p.assignedAdvisorId));
+  }, [rows, profile?.role, myAdvisorIds]);
 
   const filtered = useMemo(() => {
     let arr = visibleRows;
