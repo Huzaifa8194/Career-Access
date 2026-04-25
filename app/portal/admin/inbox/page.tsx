@@ -44,7 +44,7 @@ function AdminInbox() {
   const [selectedThreadParticipantId, setSelectedThreadParticipantId] = useState<string | null>(null);
   const [assigningParticipantId, setAssigningParticipantId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [activeLane, setActiveLane] = useState<"all" | "contact" | "bookings" | "unassigned">(
+  const [activeLane, setActiveLane] = useState<"all" | "contact" | "bookings" | "threads" | "unassigned">(
     "all"
   );
 
@@ -105,6 +105,13 @@ function AdminInbox() {
       .filter((m) => m.participantId === selectedThreadParticipantId)
       .sort((a, b) => (a.createdAtISO ?? "").localeCompare(b.createdAtISO ?? ""));
   }, [messages, selectedThreadParticipantId]);
+  const allThreads = useMemo(() => {
+    const byParticipant = new Map<string, MessageRow>();
+    for (const m of messages) {
+      if (!byParticipant.has(m.participantId)) byParticipant.set(m.participantId, m);
+    }
+    return Array.from(byParticipant.values());
+  }, [messages]);
 
   const term = search.trim().toLowerCase();
   const filteredInquiries = useMemo(
@@ -140,6 +147,15 @@ function AdminInbox() {
       }),
     [unassignedThreads, participantById, term]
   );
+  const filteredAllThreads = useMemo(
+    () =>
+      allThreads.filter((m) => {
+        const p = getParticipantForThreadKey(m.participantId);
+        const name = p ? `${p.firstName} ${p.lastName}` : m.senderName;
+        return [name, p?.email, m.body].filter(Boolean).join(" ").toLowerCase().includes(term);
+      }),
+    [allThreads, term, participantById, participantByUserId]
+  );
 
   return (
     <PortalShell
@@ -168,6 +184,12 @@ function AdminInbox() {
             onClick={() => setActiveLane("bookings")}
           />
           <LaneButton
+            label="Threads"
+            count={filteredAllThreads.length}
+            active={activeLane === "threads"}
+            onClick={() => setActiveLane("threads")}
+          />
+          <LaneButton
             label="Unassigned Msgs"
             count={filteredUnassignedThreads.length}
             active={activeLane === "unassigned"}
@@ -182,6 +204,79 @@ function AdminInbox() {
           className="h-9 w-full max-w-sm rounded-md border border-line bg-white px-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
         />
       </div>
+
+      {(activeLane === "all" || activeLane === "threads") && (
+      <div className="mb-4">
+        <Card>
+          <CardHeader
+            title="Participant threads"
+            description="All message threads with quick advisor assignment"
+            action={<Badge tone="primary">{filteredAllThreads.length}</Badge>}
+          />
+          <CardBody className="grid gap-2 max-h-[420px] overflow-y-auto">
+            {filteredAllThreads.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">No participant threads yet.</p>
+            ) : (
+              filteredAllThreads.map((m) => {
+                const p = getParticipantForThreadKey(m.participantId);
+                const participantName = p
+                  ? `${p.firstName} ${p.lastName}`
+                  : m.senderName || m.participantId;
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-md border border-line px-3 py-2.5 hover:border-primary/30 hover:bg-canvas/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedThreadParticipantId(m.participantId)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <p className="text-[13px] font-medium text-ink">{participantName}</p>
+                        <p className="mt-1 text-[12px] text-ink-subtle">
+                          {p?.email || "No linked participant record yet"}
+                        </p>
+                        <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">{m.body}</p>
+                      </button>
+                      {p ? (
+                        <select
+                          value={p.assignedAdvisorId ?? ""}
+                          disabled={assigningParticipantId === p.id}
+                          onChange={async (e) => {
+                            const nextId = e.target.value || null;
+                            const match = advisors.find((a) => a.id === nextId);
+                            setAssigningParticipantId(p.id);
+                            try {
+                              await assignAdvisor(p.id, nextId, match?.fullName ?? null);
+                            } catch {
+                            } finally {
+                              setAssigningParticipantId(null);
+                            }
+                          }}
+                          className="h-8 min-w-[190px] rounded-md border border-line bg-white px-2 text-[12px]"
+                        >
+                          <option value="">Unassigned</option>
+                          {advisors.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.fullName}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Badge tone="warn" size="sm">
+                          Needs participant link
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </CardBody>
+        </Card>
+      </div>
+      )}
 
       {(activeLane === "all" || activeLane === "contact" || activeLane === "bookings") && (
       <div className="grid gap-4 lg:grid-cols-2">
