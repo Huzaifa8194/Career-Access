@@ -14,6 +14,7 @@ import { ArrowRight, Clock } from "@/components/icons";
 import { submitAppointment } from "@/lib/services/appointments";
 import { bookFlow } from "@/lib/flowState";
 import { useAuth } from "@/lib/firebase/auth";
+import { useParticipantContext } from "@/lib/hooks/useParticipantContext";
 
 const steps = [{ label: "Schedule" }, { label: "Confirmation" }];
 
@@ -33,6 +34,7 @@ const slots = [
 export default function BookPage() {
   const router = useRouter();
   const { user, profile } = useAuth();
+  const { participantId } = useParticipantContext();
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [date, setDate] = useState(today);
@@ -51,8 +53,13 @@ export default function BookPage() {
     setSubmitting(true);
     setError(null);
     try {
+      const emailKey = email.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const leadParticipantId =
+        participantId ||
+        profile?.participantId ||
+        (user?.uid ? `user-${user.uid}` : emailKey ? `lead-${emailKey}` : `lead-${Date.now()}`);
       const id = await submitAppointment({
-        participantId: profile?.participantId ?? user?.uid ?? "",
+        participantId: leadParticipantId,
         participantName: name,
         appointmentType,
         scheduledDate: date,

@@ -61,7 +61,7 @@ const roleNav: Record<string, { label: string; items: NavItem[] }> = {
       },
       {
         href: "/portal/advisor/inbox",
-        label: "Inbox",
+        label: "Inbox & bookings",
         icon: <Inbox size={16} />,
       },
     ],
@@ -79,6 +79,11 @@ const roleNav: Record<string, { label: string; items: NavItem[] }> = {
         href: "/portal/admin/partners",
         label: "Partners",
         icon: <Briefcase size={16} />,
+      },
+      {
+        href: "/portal/admin/inbox",
+        label: "Inbox & bookings",
+        icon: <Inbox size={16} />,
       },
       {
         href: "/portal/admin/tasks",
