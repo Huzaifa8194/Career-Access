@@ -35,6 +35,7 @@ import { COLLECTIONS } from "@/lib/firebase/types";
 
 export type ParticipantListItem = {
   id: string;
+  userId: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -66,6 +67,7 @@ function mapParticipant(
   const lastActivity = toDateISO(data.lastActivityAt);
   return {
     id,
+    userId: data.userId ?? null,
     firstName: data.firstName ?? "",
     lastName: data.lastName ?? "",
     email: data.email ?? "",

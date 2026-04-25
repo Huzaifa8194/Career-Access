@@ -14,6 +14,10 @@ import {
   subscribeThread,
   type MessageRow,
 } from "@/lib/services/messages";
+import {
+  fetchParticipantByEmail,
+  fetchParticipantByUserId,
+} from "@/lib/services/participants";
 
 export default function MessagesPage() {
   return (
@@ -30,7 +34,44 @@ function Messages() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const effectiveParticipantId = profile?.participantId ?? participantId ?? user?.uid ?? null;
+  const [resolvedParticipantId, setResolvedParticipantId] = useState<string | null>(null);
+  const effectiveParticipantId =
+    resolvedParticipantId ??
+    profile?.participantId ??
+    participantId ??
+    user?.uid ??
+    null;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function resolveParticipantId() {
+      if (!user) {
+        setResolvedParticipantId(null);
+        return;
+      }
+      if (profile?.participantId) {
+        setResolvedParticipantId(profile.participantId);
+        return;
+      }
+      if (participantId) {
+        setResolvedParticipantId(participantId);
+        return;
+      }
+      const byUser = await fetchParticipantByUserId(user.uid).catch(() => null);
+      if (byUser?.id) {
+        if (!cancelled) setResolvedParticipantId(byUser.id);
+        return;
+      }
+      const byEmail = user.email
+        ? await fetchParticipantByEmail(user.email).catch(() => null)
+        : null;
+      if (!cancelled) setResolvedParticipantId(byEmail?.id ?? null);
+    }
+    resolveParticipantId();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, user?.email, profile?.participantId, participantId]);
 
   useEffect(() => {
     if (!effectiveParticipantId) return;

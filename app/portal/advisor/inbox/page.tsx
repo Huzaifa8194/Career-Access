@@ -91,7 +91,12 @@ function AdvisorInbox() {
   }, [participants, profile?.role, myAdvisorIds]);
 
   const visibleParticipantIds = useMemo(
-    () => new Set(visibleParticipants.map((p) => p.id)),
+    () =>
+      new Set(
+        visibleParticipants.flatMap((p) =>
+          [p.id, p.userId, p.userId ? `user-${p.userId}` : null].filter(Boolean) as string[]
+        )
+      ),
     [visibleParticipants]
   );
 
@@ -107,7 +112,14 @@ function AdvisorInbox() {
 
   const threads = useMemo<Thread[]>(() => {
     const map = new Map<string, Thread>();
-    const byId = new Map(visibleParticipants.map((p) => [p.id, p]));
+    const byId = new Map<string, ParticipantListItem>();
+    for (const p of visibleParticipants) {
+      byId.set(p.id, p);
+      if (p.userId) {
+        byId.set(p.userId, p);
+        byId.set(`user-${p.userId}`, p);
+      }
+    }
     for (const m of visibleMessages) {
       const existing = map.get(m.participantId);
       const p = byId.get(m.participantId);

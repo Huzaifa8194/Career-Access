@@ -67,6 +67,20 @@ function AdminInbox() {
     () => new Map(participants.map((p) => [p.id, p])),
     [participants]
   );
+  const participantByUserId = useMemo(
+    () =>
+      new Map(
+        participants
+          .filter((p) => !!p.userId)
+          .map((p) => [p.userId as string, p])
+      ),
+    [participants]
+  );
+  const getParticipantForThreadKey = (key: string) =>
+    participantById.get(key) ||
+    participantByUserId.get(key) ||
+    (key.startsWith("user-") ? participantByUserId.get(key.slice(5)) : undefined) ||
+    null;
 
   const unassignedThreads = useMemo(() => {
     const byParticipant = new Map<string, MessageRow>();
@@ -77,13 +91,13 @@ function AdminInbox() {
       }
     }
     return Array.from(byParticipant.values()).filter((m) => {
-      const p = participantById.get(m.participantId);
+      const p = getParticipantForThreadKey(m.participantId);
       return !p || !p.assignedAdvisorId;
     });
-  }, [messages, participantById]);
+  }, [messages, participantById, participantByUserId]);
 
   const selectedThreadParticipant = selectedThreadParticipantId
-    ? participantById.get(selectedThreadParticipantId) ?? null
+    ? getParticipantForThreadKey(selectedThreadParticipantId)
     : null;
   const selectedThreadMessages = useMemo(() => {
     if (!selectedThreadParticipantId) return [];
@@ -260,7 +274,7 @@ function AdminInbox() {
               </p>
             ) : (
               filteredUnassignedThreads.map((m) => {
-                const p = participantById.get(m.participantId);
+                const p = getParticipantForThreadKey(m.participantId);
                 const participantName = p
                   ? `${p.firstName} ${p.lastName}`
                   : m.senderName || m.participantId;
