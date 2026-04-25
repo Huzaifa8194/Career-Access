@@ -12,6 +12,8 @@ import {
   subscribeParticipants,
   type ParticipantListItem,
 } from "@/lib/services/participants";
+import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
+import { useAuth } from "@/lib/firebase/auth";
 import { countScheduledAppointments } from "@/lib/services/appointments";
 import type { ParticipantStatus } from "@/lib/firebase/types";
 
@@ -47,33 +49,51 @@ export default function AdvisorPipelinePage() {
 }
 
 function AdvisorPipeline() {
+  const { user, profile } = useAuth();
   const [participants, setParticipants] = useState<ParticipantListItem[]>([]);
+  const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
   const [callsScheduled, setCallsScheduled] = useState(0);
 
   useEffect(() => {
     const unsub = subscribeParticipants(setParticipants);
+    const unsubAdvisors = subscribeAdvisors(setAdvisors);
     countScheduledAppointments().then(setCallsScheduled).catch(() => {});
-    return () => unsub();
+    return () => {
+      unsub();
+      unsubAdvisors();
+    };
   }, []);
 
+  const myAdvisorId = useMemo(() => {
+    if (profile?.role !== "advisor") return null;
+    if (!user?.uid) return null;
+    return advisors.find((a) => a.userId === user.uid)?.id ?? null;
+  }, [advisors, user?.uid, profile?.role]);
+
+  const visibleParticipants = useMemo(() => {
+    if (profile?.role !== "advisor") return participants;
+    if (!myAdvisorId) return [];
+    return participants.filter((p) => p.assignedAdvisorId === myAdvisorId);
+  }, [participants, profile?.role, myAdvisorId]);
+
   const stalled = useMemo(
-    () => participants.filter((p) => p.risk && p.risk !== "ok"),
-    [participants]
+    () => visibleParticipants.filter((p) => p.risk && p.risk !== "ok"),
+    [visibleParticipants]
   );
 
   const newThisWeek = useMemo(() => {
     const weekAgo = Date.now() - 7 * 86400_000;
-    return participants.filter(
+    return visibleParticipants.filter(
       (p) =>
         p.submittedAtISO && new Date(p.submittedAtISO).getTime() > weekAgo
     ).length;
-  }, [participants]);
+  }, [visibleParticipants]);
 
   return (
     <PortalShell
       role="advisor"
       title="Your pipeline"
-      subtitle={`${participants.length} active cases across all stages`}
+      subtitle={`${visibleParticipants.length} active cases across all stages`}
       actions={
         <>
           <LinkButton
@@ -96,7 +116,7 @@ function AdvisorPipeline() {
       <div className="grid gap-4 sm:grid-cols-4 mb-6">
         <StatCard
           label="Active cases"
-          value={participants.length}
+          value={visibleParticipants.length}
           tone="primary"
           hint="Across 4 pathways"
         />
@@ -164,7 +184,7 @@ function AdvisorPipeline() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         {stages.map((stage) => {
-          const items = participants.filter((p) => p.status === stage.key);
+          const items = visibleParticipants.filter((p) => p.status === stage.key);
           return (
             <div
               key={stage.key}

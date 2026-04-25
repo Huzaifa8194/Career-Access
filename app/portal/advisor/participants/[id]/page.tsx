@@ -11,6 +11,8 @@ import {
   fetchParticipantById,
   type ParticipantListItem,
 } from "@/lib/services/participants";
+import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
+import { useAuth } from "@/lib/firebase/auth";
 
 export default function AdvisorParticipantPage({
   params,
@@ -26,10 +28,14 @@ export default function AdvisorParticipantPage({
 }
 
 function AdvisorParticipantView({ id }: { id: string }) {
+  const { user, profile } = useAuth();
   const [participant, setParticipant] = useState<ParticipantListItem | null>(
     null
   );
   const [loading, setLoading] = useState(true);
+  const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
+
+  useEffect(() => subscribeAdvisors(setAdvisors), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +54,11 @@ function AdvisorParticipantView({ id }: { id: string }) {
     };
   }, [id]);
 
+  const myAdvisorId =
+    profile?.role === "advisor" && user?.uid
+      ? advisors.find((a) => a.userId === user.uid)?.id ?? null
+      : null;
+
   if (loading) {
     return (
       <PortalShell role="advisor" title="Participant">
@@ -63,6 +74,22 @@ function AdvisorParticipantView({ id }: { id: string }) {
           We couldn&apos;t find this participant.{" "}
           <Link href="/portal/advisor/participants" className="text-primary">
             Back to list
+          </Link>
+        </div>
+      </PortalShell>
+    );
+  }
+
+  if (
+    profile?.role === "advisor" &&
+    participant.assignedAdvisorId !== myAdvisorId
+  ) {
+    return (
+      <PortalShell role="advisor" title="Access restricted">
+        <div className="text-[14px] text-ink-muted">
+          This participant is not assigned to you.{" "}
+          <Link href="/portal/advisor/participants" className="text-primary">
+            Back to your list
           </Link>
         </div>
       </PortalShell>

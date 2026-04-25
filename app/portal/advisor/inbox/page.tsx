@@ -23,6 +23,7 @@ import {
   subscribeParticipants,
   type ParticipantListItem,
 } from "@/lib/services/participants";
+import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
 import { useAuth } from "@/lib/firebase/auth";
 
 export default function AdvisorInboxPage() {
@@ -43,9 +44,10 @@ type Thread = {
 };
 
 function AdvisorInbox() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantListItem[]>([]);
+  const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
   const [contactInquiries, setContactInquiries] = useState<ContactInquiryRow[]>([]);
   const [bookings, setBookings] = useState<AppointmentRow[]>([]);
   const [selectedInquiry, setSelectedInquiry] = useState<ContactInquiryRow | null>(null);
@@ -55,20 +57,49 @@ function AdvisorInbox() {
   useEffect(() => {
     const a = subscribeAllThreads(setMessages);
     const b = subscribeParticipants(setParticipants);
+    const e = subscribeAdvisors(setAdvisors);
     const c = subscribeRecentContactInquiries(setContactInquiries, 8);
     const d = subscribeRecentAppointments(setBookings, 8);
     return () => {
       a();
       b();
+      e();
       c();
       d();
     };
   }, []);
 
+  const myAdvisorId = useMemo(() => {
+    if (profile?.role !== "advisor") return null;
+    if (!user?.uid) return null;
+    return advisors.find((a) => a.userId === user.uid)?.id ?? null;
+  }, [advisors, user?.uid, profile?.role]);
+
+  const visibleParticipants = useMemo(() => {
+    if (profile?.role !== "advisor") return participants;
+    if (!myAdvisorId) return [];
+    return participants.filter((p) => p.assignedAdvisorId === myAdvisorId);
+  }, [participants, profile?.role, myAdvisorId]);
+
+  const visibleParticipantIds = useMemo(
+    () => new Set(visibleParticipants.map((p) => p.id)),
+    [visibleParticipants]
+  );
+
+  const visibleMessages = useMemo(() => {
+    if (profile?.role !== "advisor") return messages;
+    return messages.filter((m) => visibleParticipantIds.has(m.participantId));
+  }, [messages, profile?.role, visibleParticipantIds]);
+
+  const visibleBookings = useMemo(() => {
+    if (profile?.role !== "advisor") return bookings;
+    return bookings.filter((b) => visibleParticipantIds.has(b.participantId));
+  }, [bookings, profile?.role, visibleParticipantIds]);
+
   const threads = useMemo<Thread[]>(() => {
     const map = new Map<string, Thread>();
-    const byId = new Map(participants.map((p) => [p.id, p]));
-    for (const m of messages) {
+    const byId = new Map(visibleParticipants.map((p) => [p.id, p]));
+    for (const m of visibleMessages) {
       const existing = map.get(m.participantId);
       const p = byId.get(m.participantId);
       const name = p
@@ -94,7 +125,7 @@ function AdvisorInbox() {
       }
     }
     return Array.from(map.values());
-  }, [messages, participants, user]);
+  }, [visibleMessages, visibleParticipants, user]);
 
   const unreadCount = threads.filter((t) => t.unread).length;
 
@@ -143,13 +174,13 @@ function AdvisorInbox() {
           <CardHeader
             title="Recent advising call bookings"
             description="Submitted from /book"
-            action={<Badge tone="primary">{bookings.length}</Badge>}
+            action={<Badge tone="primary">{visibleBookings.length}</Badge>}
           />
           <CardBody className="grid gap-3">
-            {bookings.length === 0 ? (
+            {visibleBookings.length === 0 ? (
               <p className="text-[13px] text-ink-muted">No bookings yet.</p>
             ) : (
-              bookings.map((b) => (
+              visibleBookings.map((b) => (
                 <button
                   key={b.id}
                   type="button"

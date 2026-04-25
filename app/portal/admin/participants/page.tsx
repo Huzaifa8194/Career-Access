@@ -10,8 +10,10 @@ import { LinkButton } from "@/components/ui/Button";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   subscribeParticipants,
+  assignAdvisor,
   type ParticipantListItem,
 } from "@/lib/services/participants";
+import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
 import type { ParticipantStatus } from "@/lib/firebase/types";
 
 const statusTone: Record<
@@ -45,9 +47,16 @@ function AdminParticipants() {
   const [statusFilter, setStatusFilter] = useState<ParticipantStatus | "">("");
   const [sourceFilter, setSourceFilter] = useState<string>("");
   const [page, setPage] = useState(0);
+  const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   useEffect(() => {
-    return subscribeParticipants(setRows);
+    const a = subscribeParticipants(setRows);
+    const b = subscribeAdvisors(setAdvisors);
+    return () => {
+      a();
+      b();
+    };
   }, []);
 
   const tabCounts = useMemo(
@@ -291,23 +300,29 @@ function AdminParticipants() {
                     {p.appliedAt || "—"}
                   </Td>
                   <Td>
-                    {p.assignedAdvisorName ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-semibold">
-                          {p.assignedAdvisorName
-                            .split(/\s+/)
-                            .map((s) => s[0])
-                            .filter(Boolean)
-                            .slice(0, 2)
-                            .join("")}
-                        </span>
-                        {p.assignedAdvisorName.split(" ")[0]}
-                      </span>
-                    ) : (
-                      <span className="text-ink-subtle italic text-[13px]">
-                        Unassigned
-                      </span>
-                    )}
+                    <select
+                      value={p.assignedAdvisorId ?? ""}
+                      disabled={assigningId === p.id}
+                      onChange={async (e) => {
+                        const nextId = e.target.value || null;
+                        const match = advisors.find((a) => a.id === nextId);
+                        setAssigningId(p.id);
+                        try {
+                          await assignAdvisor(p.id, nextId, match?.fullName ?? null);
+                        } catch {
+                        } finally {
+                          setAssigningId(null);
+                        }
+                      }}
+                      className="h-8 min-w-[180px] rounded-md border border-line bg-white px-2 text-[13px]"
+                    >
+                      <option value="">Unassigned</option>
+                      {advisors.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.fullName}
+                        </option>
+                      ))}
+                    </select>
                   </Td>
                   <Td className="text-right pr-5">
                     <Link

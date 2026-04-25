@@ -60,13 +60,13 @@ function Messages() {
     }
   }
 
-  const advisorName = participant?.assignedAdvisorName ?? "Your advisor";
+  const advisorName = participant?.assignedAdvisorName ?? "Care Team";
 
   return (
     <PortalShell
       role="participant"
       title="Messages"
-      subtitle="Direct line to your advisor — replies within one business day."
+      subtitle="Message support anytime. If no advisor is assigned yet, admin will route your thread."
     >
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <Card>
@@ -83,7 +83,9 @@ function Messages() {
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 )}
               </div>
-              <div className="text-[12px] text-ink-subtle">Advisor</div>
+              <div className="text-[12px] text-ink-subtle">
+                {participant?.assignedAdvisorName ? "Advisor" : "Care team (unassigned)"}
+              </div>
               <p className="mt-2 text-[13px] text-ink-muted line-clamp-2">
                 {messages[messages.length - 1]?.body ??
                   "Start the conversation."}
@@ -163,7 +165,7 @@ function Messages() {
               <span className="text-[12px] text-ink-subtle">
                 {effectiveParticipantId
                   ? "Replies typically within 1 business day"
-                  : "Finish linking your participant profile to enable messaging."}
+                  : "Account linking is pending. Try again in a moment."}
               </span>
               <Button
                 onClick={send}

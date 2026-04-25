@@ -11,6 +11,8 @@ import {
   subscribeParticipants,
   type ParticipantListItem,
 } from "@/lib/services/participants";
+import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
+import { useAuth } from "@/lib/firebase/auth";
 import type { ParticipantStatus } from "@/lib/firebase/types";
 
 const statusTone: Record<
@@ -45,17 +47,36 @@ export default function AdvisorParticipantsPage() {
 }
 
 function AdvisorParticipants() {
+  const { user, profile } = useAuth();
   const [rows, setRows] = useState<ParticipantListItem[]>([]);
+  const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
   const [filter, setFilter] =
     useState<(typeof filterOptions)[number]>("All");
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    return subscribeParticipants(setRows);
+    const a = subscribeParticipants(setRows);
+    const b = subscribeAdvisors(setAdvisors);
+    return () => {
+      a();
+      b();
+    };
   }, []);
 
+  const myAdvisorId = useMemo(() => {
+    if (profile?.role !== "advisor") return null;
+    if (!user?.uid) return null;
+    return advisors.find((a) => a.userId === user.uid)?.id ?? null;
+  }, [advisors, user?.uid, profile?.role]);
+
+  const visibleRows = useMemo(() => {
+    if (profile?.role !== "advisor") return rows;
+    if (!myAdvisorId) return [];
+    return rows.filter((p) => p.assignedAdvisorId === myAdvisorId);
+  }, [rows, profile?.role, myAdvisorId]);
+
   const filtered = useMemo(() => {
-    let arr = rows;
+    let arr = visibleRows;
     if (filter === "Risk") {
       arr = arr.filter((p) => p.risk !== "ok");
     } else if (filter !== "All") {
@@ -79,13 +100,13 @@ function AdvisorParticipants() {
       );
     }
     return arr;
-  }, [rows, filter, q]);
+  }, [visibleRows, filter, q]);
 
   return (
     <PortalShell
       role="advisor"
       title="Participants"
-      subtitle="All participants assigned to you, plus unassigned cases."
+      subtitle="Participants currently assigned to you."
       actions={
         <div className="relative">
           <Search
