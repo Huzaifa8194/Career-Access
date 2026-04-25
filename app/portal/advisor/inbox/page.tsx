@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { DetailGrid, DetailModal } from "@/components/ui/DetailModal";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   subscribeAllThreads,
@@ -47,6 +48,9 @@ function AdvisorInbox() {
   const [participants, setParticipants] = useState<ParticipantListItem[]>([]);
   const [contactInquiries, setContactInquiries] = useState<ContactInquiryRow[]>([]);
   const [bookings, setBookings] = useState<AppointmentRow[]>([]);
+  const [selectedInquiry, setSelectedInquiry] = useState<ContactInquiryRow | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
+  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
 
   useEffect(() => {
     const a = subscribeAllThreads(setMessages);
@@ -112,7 +116,12 @@ function AdvisorInbox() {
               <p className="text-[13px] text-ink-muted">No inquiries yet.</p>
             ) : (
               contactInquiries.map((q) => (
-                <div key={q.id} className="rounded-md border border-line p-3">
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => setSelectedInquiry(q)}
+                  className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[14px] font-medium text-ink">{q.name}</p>
                     <Badge tone="muted" size="sm">
@@ -124,7 +133,7 @@ function AdvisorInbox() {
                   <p className="mt-2 text-[13px] text-ink-muted line-clamp-2">
                     {q.message}
                   </p>
-                </div>
+                </button>
               ))
             )}
           </CardBody>
@@ -141,7 +150,12 @@ function AdvisorInbox() {
               <p className="text-[13px] text-ink-muted">No bookings yet.</p>
             ) : (
               bookings.map((b) => (
-                <div key={b.id} className="rounded-md border border-line p-3">
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setSelectedBooking(b)}
+                  className="w-full rounded-md border border-line p-3 text-left hover:border-primary/30 hover:bg-canvas/40"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[14px] font-medium text-ink">
                       {b.contactName || b.participantName || "Unknown participant"}
@@ -157,7 +171,7 @@ function AdvisorInbox() {
                     {b.contactEmail || "No email provided"}
                   </p>
                   <p className="mt-2 text-[13px] text-ink-muted">{b.appointmentType}</p>
-                </div>
+                </button>
               ))
             )}
           </CardBody>
@@ -179,9 +193,10 @@ function AdvisorInbox() {
             <ul className="divide-y divide-line">
               {threads.map((t) => (
                 <li key={t.participantId}>
-                  <Link
-                    href={`/portal/advisor/participants/${t.participantId}`}
-                    className="flex items-start gap-4 p-5 hover:bg-canvas/40"
+                  <button
+                    type="button"
+                    onClick={() => setSelectedThread(t)}
+                    className="w-full flex items-start gap-4 p-5 hover:bg-canvas/40 text-left"
                   >
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
                       {t.participantName
@@ -210,13 +225,103 @@ function AdvisorInbox() {
                     {t.unread && (
                       <span className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
                     )}
-                  </Link>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
         </CardBody>
       </Card>
+
+      <DetailModal
+        open={!!selectedInquiry}
+        onClose={() => setSelectedInquiry(null)}
+        title="Contact inquiry details"
+        subtitle="Full intake snapshot from /contact"
+      >
+        {selectedInquiry && (
+          <DetailGrid
+            rows={[
+              { label: "Record ID", value: selectedInquiry.id },
+              { label: "Name", value: selectedInquiry.name },
+              { label: "Email", value: selectedInquiry.email },
+              { label: "Phone", value: selectedInquiry.phone || "Not provided" },
+              { label: "Role", value: selectedInquiry.role },
+              { label: "Status", value: selectedInquiry.status },
+              { label: "Source page", value: selectedInquiry.sourcePage },
+              {
+                label: "Submitted at",
+                value: selectedInquiry.createdAtISO
+                  ? new Date(selectedInquiry.createdAtISO).toLocaleString()
+                  : "Unknown",
+              },
+              { label: "Message", value: selectedInquiry.message },
+            ]}
+          />
+        )}
+      </DetailModal>
+
+      <DetailModal
+        open={!!selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        title="Booked appointment details"
+        subtitle="Full intake snapshot from /book or quick booking"
+      >
+        {selectedBooking && (
+          <DetailGrid
+            rows={[
+              { label: "Record ID", value: selectedBooking.id },
+              { label: "Participant key", value: selectedBooking.participantId },
+              {
+                label: "Contact name",
+                value:
+                  selectedBooking.contactName ||
+                  selectedBooking.participantName ||
+                  "Not provided",
+              },
+              { label: "Contact email", value: selectedBooking.contactEmail || "Not provided" },
+              { label: "Contact phone", value: selectedBooking.contactPhone || "Not provided" },
+              { label: "Appointment type", value: selectedBooking.appointmentType },
+              { label: "Date", value: selectedBooking.scheduledDate },
+              { label: "Time", value: selectedBooking.scheduledTime },
+              { label: "Timezone", value: selectedBooking.timezone },
+              { label: "Mode", value: selectedBooking.mode },
+              { label: "Status", value: selectedBooking.status },
+              { label: "Advisor", value: selectedBooking.advisorName || "Unassigned" },
+            ]}
+          />
+        )}
+      </DetailModal>
+
+      <DetailModal
+        open={!!selectedThread}
+        onClose={() => setSelectedThread(null)}
+        title="Participant thread details"
+        subtitle="Conversation summary and participant context"
+      >
+        {selectedThread && (
+          <div className="grid gap-4">
+            <DetailGrid
+              rows={[
+                { label: "Participant name", value: selectedThread.participantName },
+                { label: "Participant key", value: selectedThread.participantId },
+                { label: "Pathway", value: selectedThread.pathway },
+                { label: "Unread", value: selectedThread.unread ? "Yes" : "No" },
+                { label: "Last activity", value: selectedThread.time },
+                { label: "Latest message preview", value: selectedThread.preview },
+              ]}
+            />
+            <div>
+              <Link
+                href={`/portal/advisor/participants/${selectedThread.participantId}`}
+                className="inline-flex items-center rounded-md border border-line px-3 py-2 text-[13px] font-medium text-primary hover:bg-canvas"
+              >
+                Open full participant profile
+              </Link>
+            </div>
+          </div>
+        )}
+      </DetailModal>
     </PortalShell>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { DetailGrid, DetailModal } from "@/components/ui/DetailModal";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   subscribeReferrals,
@@ -29,6 +30,8 @@ type PartnerRow = {
 
 function AdminPartners() {
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
+  const [selectedReferral, setSelectedReferral] = useState<ReferralRow | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<PartnerRow | null>(null);
 
   useEffect(() => subscribeReferrals(setReferrals), []);
 
@@ -85,7 +88,11 @@ function AdminPartners() {
                       ? Math.round((p.enrolled / p.referrals) * 100)
                       : 0;
                     return (
-                      <tr key={p.name} className="hover:bg-canvas/50">
+                      <tr
+                        key={p.name}
+                        className="hover:bg-canvas/50 cursor-pointer"
+                        onClick={() => setSelectedPartner(p)}
+                      >
                         <td className="px-5 py-3 font-medium text-ink">
                           {p.name}
                         </td>
@@ -131,8 +138,9 @@ function AdminPartners() {
             {referrals.slice(0, 20).map((r) => (
               <div
                 key={r.id}
-                className="flex items-start justify-between gap-3 rounded-md border border-line p-3"
+                className="w-full rounded-md border border-line p-3 hover:border-primary/30 hover:bg-canvas/40"
               >
+                <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[14px] font-medium text-ink">
                     {r.applicantFirstName} {r.applicantLastName}
@@ -172,11 +180,104 @@ function AdminPartners() {
                 >
                   {r.status}
                 </Badge>
+                </div>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReferral(r)}
+                    className="text-[12px] font-medium text-primary hover:underline"
+                  >
+                    View full intake details
+                  </button>
+                </div>
               </div>
             ))}
           </CardBody>
         </Card>
       </div>
+
+      <DetailModal
+        open={!!selectedPartner}
+        onClose={() => setSelectedPartner(null)}
+        title="Partner performance details"
+        subtitle="Aggregated referral outcomes"
+      >
+        {selectedPartner && (
+          <div className="grid gap-4">
+            <DetailGrid
+              rows={[
+                { label: "Partner", value: selectedPartner.name },
+                { label: "Total referrals", value: selectedPartner.referrals },
+                { label: "Contacted", value: selectedPartner.contacted },
+                { label: "Enrolled", value: selectedPartner.enrolled },
+                {
+                  label: "Conversion",
+                  value: selectedPartner.referrals
+                    ? `${Math.round((selectedPartner.enrolled / selectedPartner.referrals) * 100)}%`
+                    : "0%",
+                },
+                {
+                  label: "Latest referral",
+                  value: selectedPartner.latest
+                    ? new Date(selectedPartner.latest).toLocaleString()
+                    : "—",
+                },
+              ]}
+            />
+            <div className="rounded-md border border-line p-3">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+                Recent submissions for this partner
+              </p>
+              <ul className="mt-3 grid gap-2">
+                {referrals
+                  .filter((r) => (r.organizationName || "Individual referrers") === selectedPartner.name)
+                  .slice(0, 8)
+                  .map((r) => (
+                    <li key={r.id} className="rounded-md border border-line bg-canvas/40 p-2.5 text-[13px]">
+                      {r.applicantFirstName} {r.applicantLastName} · {r.programInterest} · {r.status}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </DetailModal>
+
+      <DetailModal
+        open={!!selectedReferral}
+        onClose={() => setSelectedReferral(null)}
+        title="Referral intake details"
+        subtitle="Complete data captured in referral form"
+      >
+        {selectedReferral && (
+          <DetailGrid
+            rows={[
+              { label: "Record ID", value: selectedReferral.id },
+              { label: "Referrer name", value: selectedReferral.referrerName },
+              { label: "Organization", value: selectedReferral.organizationName },
+              { label: "Referrer email", value: selectedReferral.email },
+              { label: "Referrer phone", value: selectedReferral.phone || "Not provided" },
+              {
+                label: "Applicant name",
+                value: `${selectedReferral.applicantFirstName} ${selectedReferral.applicantLastName}`,
+              },
+              { label: "Applicant email", value: selectedReferral.applicantEmail },
+              { label: "Applicant phone", value: selectedReferral.applicantPhone },
+              { label: "ZIP code", value: selectedReferral.zipCode },
+              { label: "Program interest", value: selectedReferral.programInterest },
+              { label: "Urgency", value: selectedReferral.urgency },
+              { label: "Status", value: selectedReferral.status },
+              {
+                label: "Submitted at",
+                value: selectedReferral.createdAtISO
+                  ? new Date(selectedReferral.createdAtISO).toLocaleString()
+                  : "Unknown",
+              },
+              { label: "Reason for referral", value: selectedReferral.reasonForReferral },
+            ]}
+          />
+        )}
+      </DetailModal>
     </PortalShell>
   );
 }
