@@ -17,6 +17,7 @@ import {
   FileText,
 } from "@/components/icons";
 import { applyFlow, type ApplyConfirmation } from "@/lib/flowState";
+import { useAuth } from "@/lib/firebase/auth";
 
 const steps = [
   { label: "Eligibility" },
@@ -26,6 +27,7 @@ const steps = [
 
 export default function ApplyConfirmationPage() {
   const [data, setData] = useState<ApplyConfirmation | null>(null);
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     setData(applyFlow.getConfirmation());
@@ -33,6 +35,21 @@ export default function ApplyConfirmationPage() {
 
   const refId = data?.referenceId ?? "CA-APP-PENDING";
   const pathway = data?.pathway ?? "College + FAFSA";
+  const isSignedIn = !!user;
+  const isParticipant = profile?.role === "participant";
+  const primaryHref = isSignedIn
+    ? isParticipant
+      ? "/portal/participant"
+      : "/portal"
+    : "/portal/sign-up";
+  const primaryLabel = isSignedIn
+    ? isParticipant
+      ? "Open your participant portal"
+      : "Open your workspace"
+    : "Create your portal account";
+  const subcopy = isSignedIn
+    ? "Your application has been submitted and routed to an advisor. You can track status updates in your portal."
+    : "Your application has been submitted and routed to an advisor. Create a portal account below to track your progress.";
 
   return (
     <FlowShell
@@ -80,8 +97,7 @@ export default function ApplyConfirmationPage() {
           Thank You{data?.firstName ? `, ${data.firstName}` : ""}!
         </h1>
         <p className="mt-3 text-[16px] text-ink-muted leading-7 max-w-xl">
-          Your application has been submitted and routed to an advisor. You can
-          create a portal account below to track your progress.
+          {subcopy}
         </p>
 
         <div className="mt-8">
@@ -130,12 +146,8 @@ export default function ApplyConfirmationPage() {
           <LinkButton href="/book" variant="primary" size="lg">
             Book an Advising Call <ArrowRight size={16} />
           </LinkButton>
-          <LinkButton
-            href="/portal/sign-up"
-            variant="action"
-            size="lg"
-          >
-            Create your portal account
+          <LinkButton href={primaryHref} variant="action" size="lg">
+            {primaryLabel}
           </LinkButton>
           <Link
             href="/"

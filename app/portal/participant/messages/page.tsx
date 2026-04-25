@@ -29,25 +29,32 @@ function Messages() {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const effectiveParticipantId = profile?.participantId ?? participantId;
 
   useEffect(() => {
-    if (!participantId) return;
-    const unsub = subscribeThread(participantId, setMessages);
+    if (!effectiveParticipantId) return;
+    const unsub = subscribeThread(effectiveParticipantId, setMessages);
     return () => unsub();
-  }, [participantId]);
+  }, [effectiveParticipantId]);
 
   async function send() {
-    if (!draft.trim() || !user || !participantId) return;
+    if (!draft.trim() || !user || !effectiveParticipantId) return;
     setSending(true);
+    setError(null);
     try {
       await sendMessage({
-        participantId,
+        participantId: effectiveParticipantId,
         senderId: user.uid,
         senderName: profile?.fullName || user.email || "Participant",
         senderRole: profile?.role ?? "participant",
         body: draft.trim(),
       });
       setDraft("");
+    } catch {
+      setError(
+        "We couldn't send this message yet. Confirm your portal account is linked to your application, then try again."
+      );
     } finally {
       setSending(false);
     }
@@ -147,13 +154,20 @@ function Messages() {
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Write a message…"
             />
+            {error && (
+              <div className="rounded-md border border-danger/30 bg-danger-50 p-2.5 text-[12px] text-danger">
+                {error}
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-[12px] text-ink-subtle">
-                Replies typically within 1 business day
+                {effectiveParticipantId
+                  ? "Replies typically within 1 business day"
+                  : "Finish linking your participant profile to enable messaging."}
               </span>
               <Button
                 onClick={send}
-                disabled={!draft.trim() || sending || !participantId}
+                disabled={!draft.trim() || sending || !effectiveParticipantId}
               >
                 {sending ? "Sending…" : "Send message"}
               </Button>

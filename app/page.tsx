@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SiteShell } from "@/components/site/SiteShell";
 import { SectionHeader } from "@/components/site/SectionHeader";
+import { PortalPreviewCard } from "@/components/site/PortalPreviewCard";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -14,7 +15,6 @@ import {
   FileText,
   Compass,
   Sparkle,
-  Check,
   Users,
   Clock,
 } from "@/components/icons";
@@ -168,93 +168,7 @@ function HeroStat({
 }
 
 function HeroAside() {
-  return (
-    <Card className="relative p-5 sm:p-6 max-md:rounded-2xl max-md:border-primary/10 max-md:shadow-[var(--shadow-elevated)]">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[12px] uppercase tracking-wider text-ink-subtle">
-            Your pathway, in one place
-          </p>
-          <h3 className="mt-1 text-[18px] font-semibold tracking-tight">
-            Career Access Hub portal
-          </h3>
-        </div>
-        <Badge tone="primary" dot>
-          Live
-        </Badge>
-      </div>
-
-      <div className="mt-5 rounded-md border border-line p-4 bg-canvas/60">
-        <div className="flex items-center justify-between">
-          <p className="text-[12px] text-ink-subtle uppercase tracking-wider">
-            Pathway
-          </p>
-          <Badge tone="primary">College + FAFSA</Badge>
-        </div>
-        <p className="mt-1.5 font-semibold text-[15px]">
-          Hi Jordan — you have one task due
-        </p>
-      </div>
-
-      <ul className="mt-4 flex flex-col gap-2.5">
-        {[
-          { label: "Application submitted", done: true },
-          { label: "Eligibility confirmed", done: true },
-          { label: "Advising call scheduled", done: true },
-          { label: "Submit FAFSA documents", done: false, due: "Apr 24" },
-          { label: "Confirm college choices", done: false },
-        ].map((item) => (
-          <li
-            key={item.label}
-            className="flex items-center gap-3 text-[14px]"
-          >
-            <span
-              className={[
-                "inline-flex h-5 w-5 items-center justify-center rounded-full border",
-                item.done
-                  ? "bg-action border-action text-white"
-                  : "bg-white border-line text-ink-subtle",
-              ].join(" ")}
-            >
-              {item.done ? (
-                <Check size={12} />
-              ) : (
-                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-              )}
-            </span>
-            <span
-              className={item.done ? "text-ink-subtle line-through" : "text-ink"}
-            >
-              {item.label}
-            </span>
-            {item.due && (
-              <span className="ml-auto text-[12px] text-warn font-medium">
-                Due {item.due}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
-            MR
-          </span>
-          <div className="text-[12px] leading-tight">
-            <div className="font-medium text-ink">Maya Robinson</div>
-            <div className="text-ink-subtle">Your advisor</div>
-          </div>
-        </div>
-        <Link
-          href="/portal/participant"
-          className="text-[13px] font-medium text-primary inline-flex items-center gap-1"
-        >
-          Open portal <ArrowRight size={14} />
-        </Link>
-      </div>
-    </Card>
-  );
+  return <PortalPreviewCard />;
 }
 
 function TrustStrip() {
