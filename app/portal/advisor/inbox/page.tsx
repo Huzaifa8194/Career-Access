@@ -3,21 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
-import { Card, CardHeader, CardBody } from "@/components/ui/Card";
+import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DetailGrid, DetailModal } from "@/components/ui/DetailModal";
 import { RoleGuard } from "@/components/auth/RoleGuard";
-import {
-  subscribeAllThreads,
-  type MessageRow,
-} from "@/lib/services/messages";
+import { subscribeAllThreads, type MessageRow } from "@/lib/services/messages";
 import {
   subscribeRecentContactInquiries,
   type ContactInquiryRow,
+  updateContactInquiryStatus,
 } from "@/lib/services/contactInquiries";
 import {
   subscribeRecentAppointments,
   type AppointmentRow,
+  updateAppointmentStatus,
 } from "@/lib/services/appointments";
 import {
   subscribeParticipants,
@@ -25,14 +24,6 @@ import {
 } from "@/lib/services/participants";
 import { subscribeAdvisors, type AdvisorRow } from "@/lib/services/advisors";
 import { useAuth } from "@/lib/firebase/auth";
-
-export default function AdvisorInboxPage() {
-  return (
-    <RoleGuard allow={["advisor", "admin"]}>
-      <AdvisorInbox />
-    </RoleGuard>
-  );
-}
 
 type Thread = {
   participantId: string;
@@ -43,6 +34,14 @@ type Thread = {
   unread: boolean;
 };
 
+export default function AdvisorInboxPage() {
+  return (
+    <RoleGuard allow={["advisor", "admin"]}>
+      <AdvisorInbox />
+    </RoleGuard>
+  );
+}
+
 function AdvisorInbox() {
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -50,44 +49,48 @@ function AdvisorInbox() {
   const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
   const [contactInquiries, setContactInquiries] = useState<ContactInquiryRow[]>([]);
   const [bookings, setBookings] = useState<AppointmentRow[]>([]);
+
   const [selectedInquiry, setSelectedInquiry] = useState<ContactInquiryRow | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
+
   const [search, setSearch] = useState("");
   const [activeLane, setActiveLane] = useState<"all" | "threads" | "contact" | "bookings">(
     "all"
   );
+  const [contactStatusFilter, setContactStatusFilter] = useState<
+    "all" | ContactInquiryRow["status"]
+  >("all");
+  const [bookingStatusFilter, setBookingStatusFilter] = useState<
+    "all" | AppointmentRow["status"]
+  >("all");
 
   useEffect(() => {
     const a = subscribeAllThreads(setMessages);
     const b = subscribeParticipants(setParticipants);
-    const e = subscribeAdvisors(setAdvisors);
-    const c = subscribeRecentContactInquiries(setContactInquiries, 8);
-    const d = subscribeRecentAppointments(setBookings, 8);
+    const c = subscribeAdvisors(setAdvisors);
+    const d = subscribeRecentContactInquiries(setContactInquiries, 20);
+    const e = subscribeRecentAppointments(setBookings, 20);
     return () => {
       a();
       b();
-      e();
       c();
       d();
+      e();
     };
   }, []);
 
   const myAdvisorIds = useMemo(() => {
     if (profile?.role !== "advisor") return new Set<string>();
     if (!user?.uid) return new Set<string>();
-    const ids = advisors
-      .filter((a) => a.userId === user.uid)
-      .map((a) => a.id);
+    const ids = advisors.filter((a) => a.userId === user.uid).map((a) => a.id);
     ids.push(user.uid);
     return new Set(ids);
   }, [advisors, user?.uid, profile?.role]);
 
   const visibleParticipants = useMemo(() => {
     if (profile?.role !== "advisor") return participants;
-    return participants.filter(
-      (p) => !!p.assignedAdvisorId && myAdvisorIds.has(p.assignedAdvisorId)
-    );
+    return participants.filter((p) => !!p.assignedAdvisorId && myAdvisorIds.has(p.assignedAdvisorId));
   }, [participants, profile?.role, myAdvisorIds]);
 
   const visibleParticipantIds = useMemo(
@@ -126,11 +129,9 @@ function AdvisorInbox() {
       const name = p
         ? `${p.firstName} ${p.lastName}`
         : m.senderRole === "participant"
-        ? m.senderName
-        : "Participant";
-      const time = m.createdAtISO
-        ? timeAgo(m.createdAtISO)
-        : "Just now";
+          ? m.senderName
+          : "Participant";
+      const time = m.createdAtISO ? timeAgo(m.createdAtISO) : "Just now";
       const unread = !m.read && m.senderId !== user?.uid;
       if (!existing) {
         map.set(m.participantId, {
@@ -146,9 +147,8 @@ function AdvisorInbox() {
       }
     }
     return Array.from(map.values());
-  }, [visibleMessages, visibleParticipants, user]);
+  }, [visibleMessages, visibleParticipants, user?.uid]);
 
-  const unreadCount = threads.filter((t) => t.unread).length;
   const term = search.trim().toLowerCase();
   const filteredThreads = useMemo(
     () =>
@@ -159,35 +159,77 @@ function AdvisorInbox() {
   );
   const filteredContactInquiries = useMemo(
     () =>
-      contactInquiries.filter((q) =>
-        [q.name, q.email, q.role, q.message].join(" ").toLowerCase().includes(term)
-      ),
-    [contactInquiries, term]
+      contactInquiries
+        .filter((q) =>
+          [q.name, q.email, q.role, q.message].join(" ").toLowerCase().includes(term)
+        )
+        .filter((q) => contactStatusFilter === "all" || q.status === contactStatusFilter),
+    [contactInquiries, term, contactStatusFilter]
   );
   const filteredBookings = useMemo(
     () =>
-      visibleBookings.filter((b) =>
-        [
-          b.contactName,
-          b.participantName,
-          b.contactEmail,
-          b.appointmentType,
-          b.scheduledDate,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(term)
-      ),
-    [visibleBookings, term]
+      visibleBookings
+        .filter((b) =>
+          [
+            b.contactName,
+            b.participantName,
+            b.contactEmail,
+            b.appointmentType,
+            b.scheduledDate,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(term)
+        )
+        .filter((b) => bookingStatusFilter === "all" || b.status === bookingStatusFilter),
+    [visibleBookings, term, bookingStatusFilter]
   );
+
+  const unreadCount = filteredThreads.filter((t) => t.unread).length;
 
   return (
     <PortalShell
       role="advisor"
-      title="Inbox"
-      subtitle="Direct participant threads plus fresh contact and booking submissions."
+      title="Advisor Inbox"
+      subtitle="Compact command view for assigned participant communication and intake triage."
     >
+      <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search threads, names, inquiries, bookings..."
+          className="h-10 w-full rounded-md border border-line bg-white px-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+        <select
+          value={contactStatusFilter}
+          onChange={(e) =>
+            setContactStatusFilter(e.target.value as "all" | ContactInquiryRow["status"])
+          }
+          className="h-10 min-w-[170px] rounded-md border border-line bg-white px-2 text-[13px]"
+        >
+          <option value="all">All inquiry statuses</option>
+          <option value="new">New</option>
+          <option value="in-progress">In progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <select
+          value={bookingStatusFilter}
+          onChange={(e) =>
+            setBookingStatusFilter(e.target.value as "all" | AppointmentRow["status"])
+          }
+          className="h-10 min-w-[170px] rounded-md border border-line bg-white px-2 text-[13px]"
+        >
+          <option value="all">All booking statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="no-show">No-show</option>
+        </select>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-2 justify-between">
         <div className="flex items-center gap-2">
           <LaneButton
@@ -215,173 +257,198 @@ function AdvisorInbox() {
             onClick={() => setActiveLane("bookings")}
           />
         </div>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search threads, names, messages..."
-          className="h-9 w-full max-w-sm rounded-md border border-line bg-white px-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-        />
+        <div className="text-[12px] text-ink-subtle">
+          {filteredThreads.length + filteredContactInquiries.length + filteredBookings.length} records
+        </div>
       </div>
 
       {(activeLane === "all" || activeLane === "contact" || activeLane === "bookings") && (
-      <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Recent contact form submissions"
-            description="Saved from /contact"
-            action={<Badge tone="info">{filteredContactInquiries.length}</Badge>}
-          />
-          <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
-            {filteredContactInquiries.length === 0 ? (
-              <p className="text-[13px] text-ink-muted">No inquiries yet.</p>
-            ) : (
-              filteredContactInquiries.map((q) => (
+        <div className="mb-4 grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader
+              title="Contact inquiries"
+              description="Color-coded queue with status updates"
+              action={<Badge tone="info">{filteredContactInquiries.length}</Badge>}
+            />
+            <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
+              {filteredContactInquiries.length === 0 && (
+                <p className="text-[13px] text-ink-muted">No inquiries found.</p>
+              )}
+              {filteredContactInquiries.map((q) => (
                 <button
                   key={q.id}
                   type="button"
                   onClick={() => setSelectedInquiry(q)}
-                  className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
+                  className={[
+                    "w-full rounded-md border px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40",
+                    q.status === "resolved"
+                      ? "border-action/40 bg-action-50/20"
+                      : q.status === "in-progress"
+                        ? "border-warn/40 bg-warn-50/25"
+                        : "border-primary/35 bg-primary-50/25",
+                  ].join(" ")}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13px] font-medium text-ink">{q.name}</p>
-                    <Badge tone="muted" size="sm">
-                      {q.createdAtISO ? timeAgo(q.createdAtISO) : "Just now"}
+                    <Badge
+                      tone={
+                        q.status === "resolved"
+                          ? "success"
+                          : q.status === "in-progress"
+                            ? "warn"
+                            : "info"
+                      }
+                      size="sm"
+                    >
+                      {q.status}
                     </Badge>
                   </div>
                   <p className="mt-1 text-[12px] text-ink-subtle">{q.email}</p>
-                  <p className="mt-1 text-[12px] text-ink-subtle">{q.role}</p>
-                  <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">
-                    {q.message}
-                  </p>
+                  <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">{q.message}</p>
                 </button>
-              ))
-            )}
-          </CardBody>
-        </Card>
+              ))}
+            </CardBody>
+          </Card>
 
-        <Card>
-          <CardHeader
-            title="Recent advising call bookings"
-            description="Submitted from /book"
-            action={<Badge tone="primary">{filteredBookings.length}</Badge>}
-          />
-          <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
-            {filteredBookings.length === 0 ? (
-              <p className="text-[13px] text-ink-muted">No bookings yet.</p>
-            ) : (
-              filteredBookings.map((b) => (
+          <Card>
+            <CardHeader
+              title="Booked appointments"
+              description="Operational booking queue for assigned participants"
+              action={<Badge tone="primary">{filteredBookings.length}</Badge>}
+            />
+            <CardBody className="grid gap-2 max-h-[360px] overflow-y-auto">
+              {filteredBookings.length === 0 && (
+                <p className="text-[13px] text-ink-muted">No bookings found.</p>
+              )}
+              {filteredBookings.map((b) => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => setSelectedBooking(b)}
-                  className="w-full rounded-md border border-line px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40"
+                  className={[
+                    "w-full rounded-md border px-3 py-2.5 text-left hover:border-primary/30 hover:bg-canvas/40",
+                    b.status === "completed"
+                      ? "border-action/40 bg-action-50/20"
+                      : b.status === "cancelled" || b.status === "no-show"
+                        ? "border-danger/35 bg-danger-50/25"
+                        : "border-primary/35 bg-primary-50/25",
+                  ].join(" ")}
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-[13px] font-medium text-ink">
                       {b.contactName || b.participantName || "Unknown participant"}
                     </p>
-                    <Badge tone="warn" size="sm">
+                    <Badge
+                      tone={
+                        b.status === "completed"
+                          ? "success"
+                          : b.status === "cancelled" || b.status === "no-show"
+                            ? "muted"
+                            : "warn"
+                      }
+                      size="sm"
+                    >
                       {b.status}
                     </Badge>
                   </div>
                   <p className="mt-1 text-[12px] text-ink-subtle">
-                    {b.scheduledDate} at {b.scheduledTime} {b.timezone}
-                  </p>
-                  <p className="mt-1 text-[12px] text-ink-subtle">
-                    {b.contactEmail || "No email provided"}
+                    {b.scheduledDate} · {b.scheduledTime} {b.timezone}
                   </p>
                   <p className="mt-1.5 text-[12px] text-ink-muted">{b.appointmentType}</p>
                 </button>
-              ))
-            )}
-          </CardBody>
-        </Card>
-      </div>
+              ))}
+            </CardBody>
+          </Card>
+        </div>
       )}
 
       {(activeLane === "all" || activeLane === "threads") && (
-      <Card className="overflow-hidden">
-        <CardHeader
-          title="Threads"
-          description="Sorted by most recent"
-          action={<Badge tone="warn">{unreadCount} unread</Badge>}
-        />
-        <CardBody className="p-0">
-          {filteredThreads.length === 0 ? (
-            <div className="p-6 text-[13px] text-ink-muted">
-              No messages yet.
-            </div>
-          ) : (
-            <ul className="divide-y divide-line max-h-[460px] overflow-y-auto">
-              {filteredThreads.map((t) => (
-                <li key={t.participantId}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedThread(t)}
-                    className="w-full flex items-start gap-3 px-4 py-3 hover:bg-canvas/40 text-left"
-                  >
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
-                      {t.participantName
-                        .split(/\s+/)
-                        .map((s) => s[0])
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .join("")}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[13px] font-medium text-ink">
-                          {t.participantName}
-                        </span>
-                        <span className="text-[12px] text-ink-subtle">
-                          {t.time}
-                        </span>
+        <Card className="overflow-hidden">
+          <CardHeader
+            title="Assigned participant threads"
+            description="Latest message first, unread highlighted"
+            action={<Badge tone="warn">{unreadCount} unread</Badge>}
+          />
+          <CardBody className="p-0">
+            {filteredThreads.length === 0 ? (
+              <div className="p-6 text-[13px] text-ink-muted">No threads found.</div>
+            ) : (
+              <ul className="divide-y divide-line max-h-[460px] overflow-y-auto">
+                {filteredThreads.map((t) => (
+                  <li key={t.participantId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedThread(t)}
+                      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-canvas/40 text-left"
+                    >
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
+                        {t.participantName
+                          .split(/\s+/)
+                          .map((s) => s[0])
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .join("")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[13px] font-medium text-ink">{t.participantName}</span>
+                          <span className="text-[12px] text-ink-subtle">{t.time}</span>
+                        </div>
+                        <div className="text-[12px] text-ink-subtle">{t.pathway}</div>
+                        <p className="mt-1 text-[12px] text-ink-muted line-clamp-1">{t.preview}</p>
                       </div>
-                      <div className="text-[12px] text-ink-subtle">
-                        {t.pathway}
-                      </div>
-                      <p className="mt-1 text-[12px] text-ink-muted line-clamp-1">
-                        {t.preview}
-                      </p>
-                    </div>
-                    {t.unread && (
-                      <span className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardBody>
-      </Card>
+                      {t.unread && <span className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
       )}
 
       <DetailModal
         open={!!selectedInquiry}
         onClose={() => setSelectedInquiry(null)}
         title="Contact inquiry details"
-        subtitle="Full intake snapshot from /contact"
+        subtitle="Review details and update status"
       >
         {selectedInquiry && (
-          <DetailGrid
-            rows={[
-              { label: "Record ID", value: selectedInquiry.id },
-              { label: "Name", value: selectedInquiry.name },
-              { label: "Email", value: selectedInquiry.email },
-              { label: "Phone", value: selectedInquiry.phone || "Not provided" },
-              { label: "Role", value: selectedInquiry.role },
-              { label: "Status", value: selectedInquiry.status },
-              { label: "Source page", value: selectedInquiry.sourcePage },
-              {
-                label: "Submitted at",
-                value: selectedInquiry.createdAtISO
-                  ? new Date(selectedInquiry.createdAtISO).toLocaleString()
-                  : "Unknown",
-              },
-              { label: "Message", value: selectedInquiry.message },
-            ]}
-          />
+          <>
+            <DetailGrid
+              rows={[
+                { label: "Record ID", value: selectedInquiry.id },
+                { label: "Name", value: selectedInquiry.name },
+                { label: "Email", value: selectedInquiry.email },
+                { label: "Phone", value: selectedInquiry.phone || "Not provided" },
+                { label: "Role", value: selectedInquiry.role },
+                { label: "Status", value: selectedInquiry.status },
+                { label: "Message", value: selectedInquiry.message },
+              ]}
+            />
+            <div className="mt-4 rounded-md border border-line p-3">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+                Update status
+              </p>
+              <div className="mt-2">
+                <select
+                  value={selectedInquiry.status}
+                  onChange={async (e) => {
+                    const next = e.target.value as ContactInquiryRow["status"];
+                    try {
+                      await updateContactInquiryStatus(selectedInquiry.id, next);
+                      setSelectedInquiry({ ...selectedInquiry, status: next });
+                    } catch {}
+                  }}
+                  className="h-9 min-w-[220px] rounded-md border border-line bg-white px-2 text-[13px]"
+                >
+                  <option value="new">New</option>
+                  <option value="in-progress">In progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+            </div>
+          </>
         )}
       </DetailModal>
 
@@ -389,31 +456,54 @@ function AdvisorInbox() {
         open={!!selectedBooking}
         onClose={() => setSelectedBooking(null)}
         title="Booked appointment details"
-        subtitle="Full intake snapshot from /book or quick booking"
+        subtitle="Review details and update status"
       >
         {selectedBooking && (
-          <DetailGrid
-            rows={[
-              { label: "Record ID", value: selectedBooking.id },
-              { label: "Participant key", value: selectedBooking.participantId },
-              {
-                label: "Contact name",
-                value:
-                  selectedBooking.contactName ||
-                  selectedBooking.participantName ||
-                  "Not provided",
-              },
-              { label: "Contact email", value: selectedBooking.contactEmail || "Not provided" },
-              { label: "Contact phone", value: selectedBooking.contactPhone || "Not provided" },
-              { label: "Appointment type", value: selectedBooking.appointmentType },
-              { label: "Date", value: selectedBooking.scheduledDate },
-              { label: "Time", value: selectedBooking.scheduledTime },
-              { label: "Timezone", value: selectedBooking.timezone },
-              { label: "Mode", value: selectedBooking.mode },
-              { label: "Status", value: selectedBooking.status },
-              { label: "Advisor", value: selectedBooking.advisorName || "Unassigned" },
-            ]}
-          />
+          <>
+            <DetailGrid
+              rows={[
+                { label: "Record ID", value: selectedBooking.id },
+                { label: "Participant key", value: selectedBooking.participantId },
+                {
+                  label: "Contact name",
+                  value:
+                    selectedBooking.contactName ||
+                    selectedBooking.participantName ||
+                    "Not provided",
+                },
+                { label: "Contact email", value: selectedBooking.contactEmail || "Not provided" },
+                { label: "Appointment type", value: selectedBooking.appointmentType },
+                { label: "Date", value: selectedBooking.scheduledDate },
+                { label: "Time", value: selectedBooking.scheduledTime },
+                { label: "Status", value: selectedBooking.status },
+                { label: "Advisor", value: selectedBooking.advisorName || "Unassigned" },
+              ]}
+            />
+            <div className="mt-4 rounded-md border border-line p-3">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+                Update status
+              </p>
+              <div className="mt-2">
+                <select
+                  value={selectedBooking.status}
+                  onChange={async (e) => {
+                    const next = e.target.value as AppointmentRow["status"];
+                    try {
+                      await updateAppointmentStatus(selectedBooking.id, next);
+                      setSelectedBooking({ ...selectedBooking, status: next });
+                    } catch {}
+                  }}
+                  className="h-9 min-w-[220px] rounded-md border border-line bg-white px-2 text-[13px]"
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="no-show">No-show</option>
+                </select>
+              </div>
+            </div>
+          </>
         )}
       </DetailModal>
 

@@ -5,10 +5,13 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
 import { contactInquiriesCol } from "@/lib/firebase/firestore";
-import { type ContactInquiryDoc, toDateISO } from "@/lib/firebase/types";
+import { getFirebaseDb } from "@/lib/firebase/config";
+import { COLLECTIONS, type ContactInquiryDoc, toDateISO } from "@/lib/firebase/types";
+import { doc } from "firebase/firestore";
 
 export type ContactInquiryInput = {
   name: string;
@@ -72,4 +75,14 @@ export function subscribeRecentContactInquiries(
     },
     () => cb([])
   );
+}
+
+export async function updateContactInquiryStatus(
+  id: string,
+  status: ContactInquiryRow["status"]
+): Promise<void> {
+  await updateDoc(doc(getFirebaseDb(), COLLECTIONS.contactInquiries, id), {
+    status,
+    updatedAt: serverTimestamp(),
+  });
 }
