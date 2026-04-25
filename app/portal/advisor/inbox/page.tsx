@@ -5,9 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Field";
 import { DetailGrid, DetailModal } from "@/components/ui/DetailModal";
 import { RoleGuard } from "@/components/auth/RoleGuard";
-import { subscribeAllThreads, type MessageRow } from "@/lib/services/messages";
+import {
+  markMessageRead,
+  sendMessage,
+  subscribeAllThreads,
+  type MessageRow,
+} from "@/lib/services/messages";
 import {
   subscribeRecentContactInquiries,
   type ContactInquiryRow,
@@ -53,6 +60,9 @@ function AdvisorInbox() {
   const [selectedInquiry, setSelectedInquiry] = useState<ContactInquiryRow | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [activeLane, setActiveLane] = useState<"all" | "threads" | "contact" | "bookings">(
@@ -187,6 +197,41 @@ function AdvisorInbox() {
   );
 
   const unreadCount = filteredThreads.filter((t) => t.unread).length;
+  const selectedThreadMessages = useMemo(() => {
+    if (!selectedThread) return [];
+    return visibleMessages
+      .filter((m) => m.participantId === selectedThread.participantId)
+      .sort((a, b) => (a.createdAtISO ?? "").localeCompare(b.createdAtISO ?? ""));
+  }, [visibleMessages, selectedThread]);
+
+  useEffect(() => {
+    if (!selectedThread || !user?.uid) return;
+    const toMark = selectedThreadMessages.filter(
+      (m) => !m.read && m.senderId !== user.uid
+    );
+    if (toMark.length === 0) return;
+    Promise.all(toMark.map((m) => markMessageRead(m.id))).catch(() => {});
+  }, [selectedThread, selectedThreadMessages, user?.uid]);
+
+  async function sendReply() {
+    if (!selectedThread || !user || !replyDraft.trim() || replySending) return;
+    setReplySending(true);
+    setReplyError(null);
+    try {
+      await sendMessage({
+        participantId: selectedThread.participantId,
+        senderId: user.uid,
+        senderName: profile?.fullName || user.email || "Advisor",
+        senderRole: profile?.role ?? "advisor",
+        body: replyDraft.trim(),
+      });
+      setReplyDraft("");
+    } catch {
+      setReplyError("Could not send reply. Please try again.");
+    } finally {
+      setReplySending(false);
+    }
+  }
 
   return (
     <PortalShell
@@ -363,48 +408,125 @@ function AdvisorInbox() {
       )}
 
       {(activeLane === "all" || activeLane === "threads") && (
-        <Card className="overflow-hidden">
-          <CardHeader
-            title="Assigned participant threads"
-            description="Latest message first, unread highlighted"
-            action={<Badge tone="warn">{unreadCount} unread</Badge>}
-          />
-          <CardBody className="p-0">
-            {filteredThreads.length === 0 ? (
-              <div className="p-6 text-[13px] text-ink-muted">No threads found.</div>
-            ) : (
-              <ul className="divide-y divide-line max-h-[460px] overflow-y-auto">
-                {filteredThreads.map((t) => (
-                  <li key={t.participantId}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedThread(t)}
-                      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-canvas/40 text-left"
-                    >
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
-                        {t.participantName
-                          .split(/\s+/)
-                          .map((s) => s[0])
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .join("")}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[13px] font-medium text-ink">{t.participantName}</span>
-                          <span className="text-[12px] text-ink-subtle">{t.time}</span>
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_1.25fr]">
+          <Card className="overflow-hidden">
+            <CardHeader
+              title="Assigned participant threads"
+              description="Latest message first, unread highlighted"
+              action={<Badge tone="warn">{unreadCount} unread</Badge>}
+            />
+            <CardBody className="p-0">
+              {filteredThreads.length === 0 ? (
+                <div className="p-6 text-[13px] text-ink-muted">No threads found.</div>
+              ) : (
+                <ul className="divide-y divide-line max-h-[560px] overflow-y-auto">
+                  {filteredThreads.map((t) => (
+                    <li key={t.participantId}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedThread(t)}
+                        className={[
+                          "w-full flex items-start gap-3 px-4 py-3 hover:bg-canvas/40 text-left",
+                          selectedThread?.participantId === t.participantId ? "bg-primary-50/40" : "",
+                        ].join(" ")}
+                      >
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-[12px] font-semibold">
+                          {t.participantName
+                            .split(/\s+/)
+                            .map((s) => s[0])
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join("")}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[13px] font-medium text-ink">{t.participantName}</span>
+                            <span className="text-[12px] text-ink-subtle">{t.time}</span>
+                          </div>
+                          <div className="text-[12px] text-ink-subtle">{t.pathway}</div>
+                          <p className="mt-1 text-[12px] text-ink-muted line-clamp-1">{t.preview}</p>
                         </div>
-                        <div className="text-[12px] text-ink-subtle">{t.pathway}</div>
-                        <p className="mt-1 text-[12px] text-ink-muted line-clamp-1">{t.preview}</p>
+                        {t.unread && <span className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card className="flex flex-col min-h-[560px]">
+            <CardHeader
+              title={selectedThread?.participantName || "Select a thread"}
+              description={selectedThread ? selectedThread.pathway : "Choose a thread to view conversation"}
+              action={
+                selectedThread ? (
+                  <Link
+                    href={`/portal/advisor/participants/${selectedThread.participantId}`}
+                    className="text-[12px] font-medium text-primary"
+                  >
+                    Open profile
+                  </Link>
+                ) : undefined
+              }
+            />
+            <CardBody className="flex-1 grid gap-2 content-end">
+              {!selectedThread ? (
+                <p className="text-[13px] text-ink-muted">No thread selected.</p>
+              ) : selectedThreadMessages.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No messages yet in this thread.</p>
+              ) : (
+                <div className="grid gap-2 max-h-[360px] overflow-y-auto pr-1">
+                  {selectedThreadMessages.map((m) => {
+                    const mine = m.senderId === user?.uid;
+                    return (
+                      <div
+                        key={m.id}
+                        className={[
+                          "max-w-[85%] rounded-lg border px-3 py-2",
+                          mine
+                            ? "ml-auto border-primary bg-primary text-white"
+                            : "border-line bg-white text-ink",
+                        ].join(" ")}
+                      >
+                        {!mine && (
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+                            {m.senderName}
+                          </p>
+                        )}
+                        <p className="text-[13px] whitespace-pre-wrap">{m.body}</p>
+                        <p className={`mt-1 text-[11px] ${mine ? "text-white/70" : "text-ink-subtle"}`}>
+                          {m.createdAtISO ? new Date(m.createdAtISO).toLocaleString() : "Just now"}
+                        </p>
                       </div>
-                      {t.unread && <span className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardBody>
+            <div className="border-t border-line p-3 grid gap-2">
+              <Textarea
+                rows={3}
+                value={replyDraft}
+                onChange={(e) => setReplyDraft(e.target.value)}
+                placeholder={selectedThread ? "Type your reply…" : "Select a thread first"}
+              />
+              {replyError && (
+                <div className="rounded-md border border-danger/30 bg-danger-50 p-2 text-[12px] text-danger">
+                  {replyError}
+                </div>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  onClick={sendReply}
+                  disabled={!selectedThread || !replyDraft.trim() || replySending}
+                >
+                  {replySending ? "Sending..." : "Send reply"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       <DetailModal
@@ -507,35 +629,7 @@ function AdvisorInbox() {
         )}
       </DetailModal>
 
-      <DetailModal
-        open={!!selectedThread}
-        onClose={() => setSelectedThread(null)}
-        title="Participant thread details"
-        subtitle="Conversation summary and participant context"
-      >
-        {selectedThread && (
-          <div className="grid gap-4">
-            <DetailGrid
-              rows={[
-                { label: "Participant name", value: selectedThread.participantName },
-                { label: "Participant key", value: selectedThread.participantId },
-                { label: "Pathway", value: selectedThread.pathway },
-                { label: "Unread", value: selectedThread.unread ? "Yes" : "No" },
-                { label: "Last activity", value: selectedThread.time },
-                { label: "Latest message preview", value: selectedThread.preview },
-              ]}
-            />
-            <div>
-              <Link
-                href={`/portal/advisor/participants/${selectedThread.participantId}`}
-                className="inline-flex items-center rounded-md border border-line px-3 py-2 text-[13px] font-medium text-primary hover:bg-canvas"
-              >
-                Open full participant profile
-              </Link>
-            </div>
-          </div>
-        )}
-      </DetailModal>
+      
     </PortalShell>
   );
 }
