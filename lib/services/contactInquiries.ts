@@ -47,7 +47,7 @@ function mapInquiry(id: string, data: ContactInquiryDoc): ContactInquiryRow {
 export async function submitContactInquiry(
   input: ContactInquiryInput
 ): Promise<string> {
-  const ref = await addDoc(contactInquiriesCol(), {
+  const docData: ContactInquiryDoc & Record<string, unknown> = {
     name: input.name,
     email: input.email,
     phone: input.phone ?? null,
@@ -55,8 +55,9 @@ export async function submitContactInquiry(
     message: input.message,
     sourcePage: "/contact",
     status: "new",
-    createdAt: serverTimestamp(),
-  } satisfies ContactInquiryDoc);
+    createdAt: serverTimestamp() as unknown as ContactInquiryDoc["createdAt"],
+  };
+  const ref = await addDoc(contactInquiriesCol(), docData);
   return ref.id;
 }
 
