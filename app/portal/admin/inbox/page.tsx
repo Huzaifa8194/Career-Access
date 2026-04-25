@@ -19,7 +19,6 @@ import {
 import {
   subscribeAllThreads,
   type MessageRow,
-  reassignThreadParticipantKey,
 } from "@/lib/services/messages";
 import {
   assignAdvisor,
@@ -47,8 +46,6 @@ function AdminInbox() {
   const [selectedBooking, setSelectedBooking] = useState<AppointmentRow | null>(null);
   const [selectedThreadParticipantId, setSelectedThreadParticipantId] = useState<string | null>(null);
   const [assigningParticipantId, setAssigningParticipantId] = useState<string | null>(null);
-  const [linkTargetParticipantId, setLinkTargetParticipantId] = useState("");
-  const [linkingThread, setLinkingThread] = useState(false);
   const [threadActionError, setThreadActionError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -95,6 +92,13 @@ function AdminInbox() {
     participantByUserId.get(key) ||
     (key.startsWith("user-") ? participantByUserId.get(key.slice(5)) : undefined) ||
     null;
+  const getParticipantForThread = (m: MessageRow) =>
+    getParticipantForThreadKey(m.participantId) ||
+    (m.senderRole === "participant"
+      ? participantByUserId.get(m.senderId) ||
+        (m.senderId.startsWith("user-") ? participantByUserId.get(m.senderId.slice(5)) : null) ||
+        null
+      : null);
 
   const allThreads = useMemo(() => {
     const byParticipant = new Map<string, MessageRow>();
@@ -107,14 +111,20 @@ function AdminInbox() {
   const unassignedThreads = useMemo(
     () =>
       allThreads.filter((m) => {
-        const p = getParticipantForThreadKey(m.participantId);
+        const p = getParticipantForThread(m);
         return !p || !p.assignedAdvisorId;
       }),
     [allThreads, participantById, participantByUserId]
   );
 
+  const selectedThreadRoot = useMemo(
+    () => allThreads.find((m) => m.participantId === selectedThreadParticipantId) ?? null,
+    [allThreads, selectedThreadParticipantId]
+  );
   const selectedThreadParticipant = selectedThreadParticipantId
-    ? getParticipantForThreadKey(selectedThreadParticipantId)
+    ? selectedThreadRoot
+      ? getParticipantForThread(selectedThreadRoot)
+      : getParticipantForThreadKey(selectedThreadParticipantId)
     : null;
   const selectedThreadMessages = useMemo(() => {
     if (!selectedThreadParticipantId) return [];
@@ -155,7 +165,7 @@ function AdminInbox() {
   const filteredAllThreads = useMemo(
     () =>
       allThreads.filter((m) => {
-        const p = getParticipantForThreadKey(m.participantId);
+        const p = getParticipantForThread(m);
         const name = p ? `${p.firstName} ${p.lastName}` : m.senderName;
         return [name, p?.email, m.body].filter(Boolean).join(" ").toLowerCase().includes(term);
       }),
@@ -164,7 +174,7 @@ function AdminInbox() {
   const filteredUnassignedThreads = useMemo(
     () =>
       unassignedThreads.filter((m) => {
-        const p = getParticipantForThreadKey(m.participantId);
+        const p = getParticipantForThread(m);
         const name = p ? `${p.firstName} ${p.lastName}` : m.senderName;
         return [name, p?.email, m.body].filter(Boolean).join(" ").toLowerCase().includes(term);
       }),
@@ -364,7 +374,7 @@ function AdminInbox() {
                 <p className="text-[13px] text-ink-muted">No threads found.</p>
               )}
               {filteredAllThreads.map((m) => {
-                const p = getParticipantForThreadKey(m.participantId);
+                const p = getParticipantForThread(m);
                 const participantName = p
                   ? `${p.firstName} ${p.lastName}`
                   : m.senderName || m.participantId;
@@ -381,7 +391,7 @@ function AdminInbox() {
                       >
                         <p className="text-[13px] font-medium text-ink">{participantName}</p>
                         <p className="mt-1 text-[12px] text-ink-subtle">
-                          {p?.email || "No linked participant record yet"}
+                          {p?.email || "Participant record not found"}
                         </p>
                         <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">{m.body}</p>
                       </button>
@@ -436,7 +446,7 @@ function AdminInbox() {
                 <p className="text-[13px] text-ink-muted">No unassigned threads found.</p>
               )}
               {filteredUnassignedThreads.map((m) => {
-                const p = getParticipantForThreadKey(m.participantId);
+                const p = getParticipantForThread(m);
                 const participantName = p
                   ? `${p.firstName} ${p.lastName}`
                   : m.senderName || m.participantId;
@@ -454,7 +464,7 @@ function AdminInbox() {
                       </Badge>
                     </div>
                     <p className="mt-1 text-[12px] text-ink-subtle">
-                      {p?.email || "No linked participant record yet"}
+                      {p?.email || "Participant record not found"}
                     </p>
                     <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">{m.body}</p>
                   </button>
@@ -579,7 +589,6 @@ function AdminInbox() {
         open={!!selectedThreadParticipantId}
         onClose={() => {
           setSelectedThreadParticipantId(null);
-          setLinkTargetParticipantId("");
           setThreadActionError(null);
         }}
         title="Thread details"
@@ -640,48 +649,9 @@ function AdminInbox() {
           ) : (
             <div className="rounded-md border border-warn/40 bg-warn-50/40 p-3 text-[13px] text-ink-muted grid gap-3">
               <p>
-                No linked participant record for this thread yet. Link this thread to a participant,
-                then assign advisor.
+                No linked participant record found for this thread key. This should be rare now and
+                usually indicates older data that must be backfilled.
               </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={linkTargetParticipantId}
-                  onChange={(e) => setLinkTargetParticipantId(e.target.value)}
-                  className="h-9 min-w-[280px] rounded-md border border-line bg-white px-2 text-[13px]"
-                >
-                  <option value="">Select participant to link</option>
-                  {participants.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.firstName} {p.lastName} ({p.email || "no-email"})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={!linkTargetParticipantId || linkingThread}
-                  onClick={async () => {
-                    if (!selectedThreadParticipantId || !linkTargetParticipantId) return;
-                    setThreadActionError(null);
-                    setLinkingThread(true);
-                    try {
-                      await reassignThreadParticipantKey(
-                        selectedThreadParticipantId,
-                        linkTargetParticipantId
-                      );
-                      setSelectedThreadParticipantId(linkTargetParticipantId);
-                    } catch {
-                      setThreadActionError(
-                        "Could not link this thread to participant. Please retry."
-                      );
-                    } finally {
-                      setLinkingThread(false);
-                    }
-                  }}
-                  className="h-9 rounded-md border border-primary bg-primary px-3 text-[12px] font-medium text-white disabled:opacity-60"
-                >
-                  {linkingThread ? "Linking..." : "Link thread"}
-                </button>
-              </div>
             </div>
           )}
 

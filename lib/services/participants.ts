@@ -267,6 +267,57 @@ export async function fetchParticipantByEmail(
   return mapParticipant(d.id, d.data() as ParticipantDoc);
 }
 
+export async function ensureParticipantForUser(input: {
+  userId: string;
+  fullName?: string | null;
+  email?: string | null;
+}): Promise<ParticipantListItem | null> {
+  const existingByUser = await fetchParticipantByUserId(input.userId).catch(() => null);
+  if (existingByUser) return existingByUser;
+
+  const normalizedEmail = (input.email ?? "").trim().toLowerCase();
+  const existingByEmail = normalizedEmail
+    ? await fetchParticipantByEmail(normalizedEmail).catch(() => null)
+    : null;
+  if (existingByEmail) {
+    await updateParticipant(existingByEmail.id, { userId: input.userId }).catch(() => {});
+    await setDoc(
+      doc(getFirebaseDb(), COLLECTIONS.users, input.userId),
+      { participantId: existingByEmail.id, updatedAt: serverTimestamp() },
+      { merge: true }
+    ).catch(() => {});
+    return await fetchParticipantById(existingByEmail.id).catch(() => existingByEmail);
+  }
+
+  const name = (input.fullName ?? "").trim();
+  const [firstName = "Participant", ...rest] = name.split(/\s+/).filter(Boolean);
+  const lastName = rest.join(" ") || "User";
+  const participantData: ParticipantDoc = {
+    userId: input.userId,
+    firstName,
+    lastName,
+    email: normalizedEmail || `${input.userId}@placeholder.local`,
+    zipCode: "00000",
+    pathway: "College + FAFSA",
+    status: "New",
+    source: "Direct",
+    assignedAdvisorId: null,
+    assignedAdvisorName: null,
+    riskFlag: "ok",
+    submittedAt: serverTimestamp() as unknown as ParticipantDoc["submittedAt"],
+    lastActivityAt: serverTimestamp() as unknown as ParticipantDoc["lastActivityAt"],
+    createdAt: serverTimestamp() as unknown as ParticipantDoc["createdAt"],
+    updatedAt: serverTimestamp() as unknown as ParticipantDoc["updatedAt"],
+  };
+  const created = await addDoc(participantsCol(), participantData);
+  await setDoc(
+    doc(getFirebaseDb(), COLLECTIONS.users, input.userId),
+    { participantId: created.id, updatedAt: serverTimestamp() },
+    { merge: true }
+  ).catch(() => {});
+  return await fetchParticipantById(created.id).catch(() => null);
+}
+
 export async function updateParticipant(
   id: string,
   patch: Partial<ParticipantDoc>

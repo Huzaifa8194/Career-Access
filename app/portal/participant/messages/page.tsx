@@ -15,6 +15,7 @@ import {
   type MessageRow,
 } from "@/lib/services/messages";
 import {
+  ensureParticipantForUser,
   fetchParticipantByEmail,
   fetchParticipantByUserId,
 } from "@/lib/services/participants";
@@ -47,6 +48,15 @@ function Messages() {
     async function resolveParticipantId() {
       if (!user) {
         setResolvedParticipantId(null);
+        return;
+      }
+      const ensured = await ensureParticipantForUser({
+        userId: user.uid,
+        fullName: profile?.fullName ?? user.displayName,
+        email: profile?.email ?? user.email,
+      }).catch(() => null);
+      if (ensured?.id) {
+        if (!cancelled) setResolvedParticipantId(ensured.id);
         return;
       }
       if (profile?.participantId) {
