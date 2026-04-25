@@ -14,7 +14,6 @@ import {
   ChartBar,
   Briefcase,
   MessageSquare,
-  Settings,
   LogOut,
   ChevronDown,
   Compass,
@@ -174,7 +173,7 @@ export function PortalShell({
             <Brand markOnly size="sm" className="max-w-full" />
           </div>
 
-          <RoleSwitcher current={role} />
+          {role !== "participant" && <RoleSwitcher current={role} />}
 
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             <ul className="grid gap-0.5">
@@ -209,14 +208,6 @@ export function PortalShell({
               Account
             </div>
             <ul className="mt-2 grid gap-0.5">
-              <li>
-                <button className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] text-ink-muted hover:bg-canvas hover:text-ink">
-                  <span className="text-ink-subtle">
-                    <Settings size={16} />
-                  </span>
-                  Settings
-                </button>
-              </li>
               <li>
                 <button
                   onClick={handleSignOut}
