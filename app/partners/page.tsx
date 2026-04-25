@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SiteShell, PageHeader } from "@/components/site/SiteShell";
 import { SectionHeader } from "@/components/site/SectionHeader";
+import { TrustedPartnersSection } from "@/components/site/TrustedPartnersSection";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -36,43 +37,31 @@ export default function PartnersPage() {
         }
       />
 
-      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
-        <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:items-center mb-14">
-          <div className="relative overflow-hidden rounded-2xl border border-line bg-canvas shadow-[var(--shadow-card)]">
-            <div className="relative aspect-[5/4]">
-              <Image
-                src="/3.jpeg"
-                alt="Partner organizations meeting with Career Access Hub staff"
-                fill
-                sizes="(min-width: 1024px) 520px, 100vw"
-                className="object-cover object-top scale-[1.04]"
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent"
-              />
-              <div className="absolute left-4 bottom-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-action" />
-                Partner working session
-              </div>
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 pt-12">
+        <div className="relative overflow-hidden rounded-2xl border border-line bg-canvas shadow-[var(--shadow-card)]">
+          <div className="relative aspect-[5/4]">
+            <Image
+              src="/3.jpeg"
+              alt="Partner organizations meeting with Career Access Hub staff"
+              fill
+              sizes="(min-width: 1024px) 520px, 100vw"
+              className="object-cover object-top scale-[1.04]"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent"
+            />
+            <div className="absolute left-4 bottom-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-action" />
+              Partner working session
             </div>
           </div>
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-              Who we partner with
-            </p>
-            <h2 className="mt-2 text-[24px] sm:text-[28px] font-semibold tracking-tight leading-snug">
-              Colleges, training providers, and workforce organizations across
-              Bergen, Passaic, and Hudson.
-            </h2>
-            <p className="mt-3 text-[15px] text-ink-muted leading-relaxed">
-              We sit between public workforce systems and participant-facing
-              services — taking warm handoffs from partners and managing the
-              next 30–90 days of the case.
-            </p>
-          </div>
         </div>
+      </section>
 
+      <TrustedPartnersSection />
+
+      <section className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
         <div className="grid gap-5 md:grid-cols-3">
           {[
             {
