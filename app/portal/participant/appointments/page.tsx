@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Calendar, Clock } from "@/components/icons";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { useAuth } from "@/lib/firebase/auth";
 import { useParticipantContext } from "@/lib/hooks/useParticipantContext";
 import {
   subscribeAppointmentsForParticipant,
@@ -23,13 +24,39 @@ export default function AppointmentsPage() {
 }
 
 function Appointments() {
+  const { user, profile } = useAuth();
   const { participantId } = useParticipantContext();
   const [rows, setRows] = useState<AppointmentRow[]>([]);
 
   useEffect(() => {
-    if (!participantId) return;
-    return subscribeAppointmentsForParticipant(participantId, setRows);
-  }, [participantId]);
+    const keys = Array.from(
+      new Set(
+        [
+          participantId,
+          profile?.participantId,
+          user?.uid,
+          user?.uid ? `user-${user.uid}` : null,
+        ].filter(Boolean) as string[]
+      )
+    );
+    if (keys.length === 0) {
+      setRows([]);
+      return;
+    }
+    const byId = new Map<string, AppointmentRow>();
+    const unsubs = keys.map((k) =>
+      subscribeAppointmentsForParticipant(k, (nextRows) => {
+        for (const r of nextRows) byId.set(r.id, r);
+        const merged = Array.from(byId.values()).sort((a, b) =>
+          (a.scheduledAtISO ?? "").localeCompare(b.scheduledAtISO ?? "")
+        );
+        setRows(merged);
+      })
+    );
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [participantId, profile?.participantId, user?.uid]);
 
   const now = Date.now();
   const upcoming = useMemo(

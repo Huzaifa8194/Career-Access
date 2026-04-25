@@ -78,13 +78,19 @@ function AdminInbox() {
     }
     return Array.from(byParticipant.values()).filter((m) => {
       const p = participantById.get(m.participantId);
-      return p && !p.assignedAdvisorId;
+      return !p || !p.assignedAdvisorId;
     });
   }, [messages, participantById]);
 
   const selectedThreadParticipant = selectedThreadParticipantId
     ? participantById.get(selectedThreadParticipantId) ?? null
     : null;
+  const selectedThreadMessages = useMemo(() => {
+    if (!selectedThreadParticipantId) return [];
+    return messages
+      .filter((m) => m.participantId === selectedThreadParticipantId)
+      .sort((a, b) => (a.createdAtISO ?? "").localeCompare(b.createdAtISO ?? ""));
+  }, [messages, selectedThreadParticipantId]);
 
   const term = search.trim().toLowerCase();
   const filteredInquiries = useMemo(
@@ -257,7 +263,7 @@ function AdminInbox() {
                 const p = participantById.get(m.participantId);
                 const participantName = p
                   ? `${p.firstName} ${p.lastName}`
-                  : m.senderName || "Participant";
+                  : m.senderName || m.participantId;
                 return (
                   <button
                     key={m.id}
@@ -272,7 +278,7 @@ function AdminInbox() {
                       </Badge>
                     </div>
                     <p className="mt-1 text-[12px] text-ink-subtle">
-                      {p?.email || "No email"}
+                      {p?.email || "No linked participant record yet"}
                     </p>
                     <p className="mt-1.5 text-[12px] text-ink-muted line-clamp-2">{m.body}</p>
                   </button>
@@ -345,64 +351,96 @@ function AdminInbox() {
       </DetailModal>
 
       <DetailModal
-        open={!!selectedThreadParticipant}
+        open={!!selectedThreadParticipantId}
         onClose={() => setSelectedThreadParticipantId(null)}
         title="Unassigned message thread"
         subtitle="Assign an advisor so this thread moves to advisor inbox"
       >
-        {selectedThreadParticipant && (
-          <div className="grid gap-4">
-            <DetailGrid
-              rows={[
-                { label: "Participant ID", value: selectedThreadParticipant.id },
-                {
-                  label: "Participant name",
-                  value: `${selectedThreadParticipant.firstName} ${selectedThreadParticipant.lastName}`,
-                },
-                { label: "Email", value: selectedThreadParticipant.email },
-                { label: "Pathway", value: selectedThreadParticipant.pathway },
-                { label: "Status", value: selectedThreadParticipant.status },
-              ]}
-            />
-            <div className="rounded-md border border-line p-3">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
-                Assign advisor
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <select
-                  defaultValue=""
-                  disabled={assigningParticipantId === selectedThreadParticipant.id}
-                  onChange={async (e) => {
-                    const nextId = e.target.value || null;
-                    if (!nextId) return;
-                    const match = advisors.find((a) => a.id === nextId);
-                    if (!match) return;
-                    setAssigningParticipantId(selectedThreadParticipant.id);
-                    try {
-                      await assignAdvisor(
-                        selectedThreadParticipant.id,
-                        match.id,
-                        match.fullName
-                      );
-                      setSelectedThreadParticipantId(null);
-                    } catch {
-                    } finally {
-                      setAssigningParticipantId(null);
-                    }
-                  }}
-                  className="h-9 min-w-[240px] rounded-md border border-line bg-white px-2 text-[13px]"
-                >
-                  <option value="">Select advisor</option>
-                  {advisors.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.fullName}
-                    </option>
-                  ))}
-                </select>
+        <div className="grid gap-4">
+          {selectedThreadParticipant ? (
+            <>
+              <DetailGrid
+                rows={[
+                  { label: "Participant ID", value: selectedThreadParticipant.id },
+                  {
+                    label: "Participant name",
+                    value: `${selectedThreadParticipant.firstName} ${selectedThreadParticipant.lastName}`,
+                  },
+                  { label: "Email", value: selectedThreadParticipant.email },
+                  { label: "Pathway", value: selectedThreadParticipant.pathway },
+                  { label: "Status", value: selectedThreadParticipant.status },
+                ]}
+              />
+              <div className="rounded-md border border-line p-3">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+                  Assign advisor
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <select
+                    defaultValue=""
+                    disabled={assigningParticipantId === selectedThreadParticipant.id}
+                    onChange={async (e) => {
+                      const nextId = e.target.value || null;
+                      if (!nextId) return;
+                      const match = advisors.find((a) => a.id === nextId);
+                      if (!match) return;
+                      setAssigningParticipantId(selectedThreadParticipant.id);
+                      try {
+                        await assignAdvisor(
+                          selectedThreadParticipant.id,
+                          match.id,
+                          match.fullName
+                        );
+                        setSelectedThreadParticipantId(null);
+                      } catch {
+                      } finally {
+                        setAssigningParticipantId(null);
+                      }
+                    }}
+                    className="h-9 min-w-[240px] rounded-md border border-line bg-white px-2 text-[13px]"
+                  >
+                    <option value="">Select advisor</option>
+                    {advisors.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+            </>
+          ) : (
+            <div className="rounded-md border border-warn/40 bg-warn-50/50 p-3 text-[13px] text-ink-muted">
+              No linked participant record found for this thread yet. Messages are visible here,
+              but advisor assignment needs a participant profile.
+            </div>
+          )}
+
+          <div className="rounded-md border border-line p-3">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+              Conversation
+            </p>
+            <div className="mt-2 grid gap-2 max-h-[320px] overflow-y-auto">
+              {selectedThreadMessages.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No messages in this thread.</p>
+              ) : (
+                selectedThreadMessages.map((m) => (
+                  <div key={m.id} className="rounded-md border border-line bg-canvas/40 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[12px] font-medium text-ink">
+                        {m.senderName} · {m.senderRole}
+                      </p>
+                      <p className="text-[11px] text-ink-subtle">
+                        {m.createdAtISO ? new Date(m.createdAtISO).toLocaleString() : "Just now"}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-[13px] text-ink-muted whitespace-pre-wrap">{m.body}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-        )}
+        </div>
       </DetailModal>
     </PortalShell>
   );

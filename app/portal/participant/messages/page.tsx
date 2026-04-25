@@ -30,7 +30,7 @@ function Messages() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const effectiveParticipantId = profile?.participantId ?? participantId;
+  const effectiveParticipantId = profile?.participantId ?? participantId ?? user?.uid ?? null;
 
   useEffect(() => {
     if (!effectiveParticipantId) return;
@@ -165,7 +165,7 @@ function Messages() {
               <span className="text-[12px] text-ink-subtle">
                 {effectiveParticipantId
                   ? "Replies typically within 1 business day"
-                  : "Account linking is pending. Try again in a moment."}
+                  : "Sign in required to send messages."}
               </span>
               <Button
                 onClick={send}

@@ -10,9 +10,15 @@ import { Mail, Phone, MapPin, Check, ArrowRight } from "@/components/icons";
 import { submitContactInquiry } from "@/lib/services/contactInquiries";
 import { submitAppointment } from "@/lib/services/appointments";
 import { bookFlow } from "@/lib/flowState";
+import { useAuth } from "@/lib/firebase/auth";
+import {
+  fetchParticipantByEmail,
+  fetchParticipantByUserId,
+} from "@/lib/services/participants";
 
 export default function ContactPage() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,14 +244,25 @@ export default function ContactPage() {
                   setBookingSubmitting(true);
                   setBookingError(null);
                   try {
+                    const resolvedParticipant =
+                      user?.uid
+                        ? await fetchParticipantByUserId(user.uid).catch(() => null)
+                        : null;
+                    const emailMatchedParticipant =
+                      !resolvedParticipant && email
+                        ? await fetchParticipantByEmail(email).catch(() => null)
+                        : null;
                     const emailKey = email
                       .trim()
                       .toLowerCase()
                       .replace(/[^a-z0-9]+/g, "-");
                     const id = await submitAppointment({
-                      participantId: emailKey
-                        ? `lead-${emailKey}`
-                        : `lead-${Date.now()}`,
+                      participantId:
+                        profile?.participantId ||
+                        resolvedParticipant?.id ||
+                        emailMatchedParticipant?.id ||
+                        user?.uid ||
+                        (emailKey ? `lead-${emailKey}` : `lead-${Date.now()}`),
                       participantName: name || "New lead",
                       appointmentType: bookingType,
                       scheduledDate: bookingDate,

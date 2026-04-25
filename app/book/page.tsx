@@ -15,6 +15,10 @@ import { submitAppointment } from "@/lib/services/appointments";
 import { bookFlow } from "@/lib/flowState";
 import { useAuth } from "@/lib/firebase/auth";
 import { useParticipantContext } from "@/lib/hooks/useParticipantContext";
+import {
+  fetchParticipantByEmail,
+  fetchParticipantByUserId,
+} from "@/lib/services/participants";
 
 const steps = [{ label: "Schedule" }, { label: "Confirmation" }];
 
@@ -53,13 +57,24 @@ export default function BookPage() {
     setSubmitting(true);
     setError(null);
     try {
+      const resolvedParticipant =
+        user?.uid
+          ? await fetchParticipantByUserId(user.uid).catch(() => null)
+          : null;
+      const emailMatchedParticipant =
+        !resolvedParticipant && email
+          ? await fetchParticipantByEmail(email).catch(() => null)
+          : null;
       const emailKey = email.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const leadParticipantId =
+      const bookingParticipantId =
         participantId ||
         profile?.participantId ||
-        (user?.uid ? `user-${user.uid}` : emailKey ? `lead-${emailKey}` : `lead-${Date.now()}`);
+        resolvedParticipant?.id ||
+        emailMatchedParticipant?.id ||
+        user?.uid ||
+        (emailKey ? `lead-${emailKey}` : `lead-${Date.now()}`);
       const id = await submitAppointment({
-        participantId: leadParticipantId,
+        participantId: bookingParticipantId,
         participantName: name,
         appointmentType,
         scheduledDate: date,
