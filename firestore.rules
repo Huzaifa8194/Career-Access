@@ -96,6 +96,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /contact_inquiries/{id} {
+      allow read: if isStaff();
+      allow create: if true;
+      allow update, delete: if isStaff();
+    }
+
     match /tasks/{id} {
       allow read: if isStaff()
         || (isSignedIn()

@@ -48,6 +48,9 @@ export function advisorsCol() {
 export function appointmentsCol() {
   return col(COLLECTIONS.appointments);
 }
+export function contactInquiriesCol() {
+  return col(COLLECTIONS.contactInquiries);
+}
 export function tasksCol() {
   return col(COLLECTIONS.tasks);
 }

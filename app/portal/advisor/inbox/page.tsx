@@ -11,6 +11,14 @@ import {
   type MessageRow,
 } from "@/lib/services/messages";
 import {
+  subscribeRecentContactInquiries,
+  type ContactInquiryRow,
+} from "@/lib/services/contactInquiries";
+import {
+  subscribeRecentAppointments,
+  type AppointmentRow,
+} from "@/lib/services/appointments";
+import {
   subscribeParticipants,
   type ParticipantListItem,
 } from "@/lib/services/participants";
@@ -37,13 +45,19 @@ function AdvisorInbox() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantListItem[]>([]);
+  const [contactInquiries, setContactInquiries] = useState<ContactInquiryRow[]>([]);
+  const [bookings, setBookings] = useState<AppointmentRow[]>([]);
 
   useEffect(() => {
     const a = subscribeAllThreads(setMessages);
     const b = subscribeParticipants(setParticipants);
+    const c = subscribeRecentContactInquiries(setContactInquiries, 8);
+    const d = subscribeRecentAppointments(setBookings, 8);
     return () => {
       a();
       b();
+      c();
+      d();
     };
   }, []);
 
@@ -84,8 +98,72 @@ function AdvisorInbox() {
     <PortalShell
       role="advisor"
       title="Inbox"
-      subtitle="Direct messages from your active participants."
+      subtitle="Direct participant threads plus fresh contact and booking submissions."
     >
+      <div className="mb-6 grid gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader
+            title="Recent contact form submissions"
+            description="Saved from /contact"
+            action={<Badge tone="info">{contactInquiries.length}</Badge>}
+          />
+          <CardBody className="grid gap-3">
+            {contactInquiries.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">No inquiries yet.</p>
+            ) : (
+              contactInquiries.map((q) => (
+                <div key={q.id} className="rounded-md border border-line p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[14px] font-medium text-ink">{q.name}</p>
+                    <Badge tone="muted" size="sm">
+                      {q.createdAtISO ? timeAgo(q.createdAtISO) : "Just now"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[12px] text-ink-subtle">{q.email}</p>
+                  <p className="mt-1 text-[12px] text-ink-subtle">{q.role}</p>
+                  <p className="mt-2 text-[13px] text-ink-muted line-clamp-2">
+                    {q.message}
+                  </p>
+                </div>
+              ))
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Recent advising call bookings"
+            description="Submitted from /book"
+            action={<Badge tone="primary">{bookings.length}</Badge>}
+          />
+          <CardBody className="grid gap-3">
+            {bookings.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">No bookings yet.</p>
+            ) : (
+              bookings.map((b) => (
+                <div key={b.id} className="rounded-md border border-line p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[14px] font-medium text-ink">
+                      {b.contactName || b.participantName || "Unknown participant"}
+                    </p>
+                    <Badge tone="warn" size="sm">
+                      {b.status}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[12px] text-ink-subtle">
+                    {b.scheduledDate} at {b.scheduledTime} {b.timezone}
+                  </p>
+                  <p className="mt-1 text-[12px] text-ink-subtle">
+                    {b.contactEmail || "No email provided"}
+                  </p>
+                  <p className="mt-2 text-[13px] text-ink-muted">{b.appointmentType}</p>
+                </div>
+              ))
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
       <Card className="overflow-hidden">
         <CardHeader
           title="Threads"

@@ -25,6 +25,7 @@ export default function HomePage() {
       <Hero />
       <TrustStrip />
       <ThreeWaysIn />
+      <PathwayHubSection />
       <HowItWorksPreview />
       <ServicesGrid />
       <Audience />
@@ -58,8 +59,9 @@ function Hero() {
               <span className="text-primary">Starts Here</span>
             </h1>
             <p className="mt-4 sm:mt-5 max-w-xl text-[15px] sm:text-[16px] md:text-[17px] leading-relaxed text-ink-muted">
-              Get free support to enroll in college, job training, or
-              apprenticeship programs.
+              Career Access Hub helps adults in Bergen, Passaic, and Hudson
+              Counties explore college, training, and apprenticeship pathways
+              with guided support from first step to enrollment.
             </p>
 
             {/* Mobile: actions grouped in one elevated panel */}
@@ -168,7 +170,33 @@ function HeroStat({
 }
 
 function HeroAside() {
-  return <PortalPreviewCard />;
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-line bg-white shadow-[var(--shadow-elevated)]">
+      <div className="relative aspect-[5/4] w-full">
+        <Image
+          src="/5.jpeg"
+          alt="Adult learner receiving career and education guidance"
+          fill
+          priority
+          sizes="(min-width: 1024px) 430px, (min-width: 768px) 45vw, 100vw"
+          className="object-cover"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent"
+        />
+        <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/20 bg-black/45 px-4 py-3 backdrop-blur-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/85">
+            Career Access Hub
+          </p>
+          <p className="mt-1 text-[14px] leading-snug text-white">
+            Local advising support for college, training, and apprenticeship
+            pathways.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TrustStrip() {
@@ -193,6 +221,11 @@ function TrustStrip() {
       name: "Passaic County Community College",
       src: "/uni5.jpeg",
       short: "Passaic County CC",
+    },
+    {
+      name: "Passaic County One Stop Career Center",
+      src: "/uni6.jpeg",
+      short: "Passaic One Stop",
     },
   ];
   return (
@@ -221,7 +254,7 @@ function TrustStrip() {
         </div>
 
         <ul
-          className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5"
+          className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6"
           role="list"
         >
           {partners.map((p) => (
@@ -251,6 +284,32 @@ function TrustStrip() {
           And a growing network of county workforce boards, community
           organizations, and employer partners.
         </p>
+      </div>
+    </section>
+  );
+}
+
+function PathwayHubSection() {
+  return (
+    <section className="bg-white border-y border-line">
+      <div className="mx-auto max-w-6xl px-5 lg:px-8 py-20">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+          <div className="order-2 lg:order-1">
+            <PortalPreviewCard />
+          </div>
+          <div className="order-1 lg:order-2">
+            <SectionHeader
+              eyebrow="Your pathway, in one place"
+              title="Track every step with one clear participant experience"
+              copy="From first conversation to enrollment, participants and advisors stay aligned in one place with milestones, reminders, and next actions."
+            />
+            <div className="mt-6">
+              <LinkButton href="/how-it-works" variant="outline" size="md">
+                See how the journey works <ArrowRight size={14} />
+              </LinkButton>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

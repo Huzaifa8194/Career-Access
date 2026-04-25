@@ -10,6 +10,14 @@ import { ArrowRight, ChartBar } from "@/components/icons";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { fetchAdminMetrics, type AdminMetrics } from "@/lib/services/metrics";
 import {
+  subscribeRecentContactInquiries,
+  type ContactInquiryRow,
+} from "@/lib/services/contactInquiries";
+import {
+  subscribeRecentAppointments,
+  type AppointmentRow,
+} from "@/lib/services/appointments";
+import {
   subscribeParticipants,
   type ParticipantListItem,
 } from "@/lib/services/participants";
@@ -50,11 +58,19 @@ export default function AdminOverviewPage() {
 function AdminOverview() {
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [participants, setParticipants] = useState<ParticipantListItem[]>([]);
+  const [contactInquiries, setContactInquiries] = useState<ContactInquiryRow[]>([]);
+  const [bookings, setBookings] = useState<AppointmentRow[]>([]);
 
   useEffect(() => {
     fetchAdminMetrics().then(setMetrics).catch(() => setMetrics(null));
     const unsub = subscribeParticipants(setParticipants);
-    return () => unsub();
+    const unsubInquiries = subscribeRecentContactInquiries(setContactInquiries, 10);
+    const unsubBookings = subscribeRecentAppointments(setBookings, 10);
+    return () => {
+      unsub();
+      unsubInquiries();
+      unsubBookings();
+    };
   }, []);
 
   useEffect(() => {
@@ -111,6 +127,100 @@ function AdminOverview() {
           value={metrics?.enrolled ?? 0}
           tone="success"
         />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2 mb-6">
+        <Card>
+          <CardHeader
+            title="Contact form queue"
+            description="Incoming submissions from /contact"
+            action={<Badge tone="info">{contactInquiries.length}</Badge>}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[13px]">
+              <thead className="bg-canvas/60 border-y border-line text-[11px] uppercase tracking-wider text-ink-subtle">
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Role</Th>
+                  <Th>Email</Th>
+                  <Th>Message</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {contactInquiries.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-6 text-center text-ink-muted">
+                      No contact submissions yet.
+                    </td>
+                  </tr>
+                )}
+                {contactInquiries.map((q) => (
+                  <tr key={q.id}>
+                    <Td>
+                      <div className="font-medium text-ink">{q.name}</div>
+                      <div className="text-[12px] text-ink-subtle">
+                        {q.createdAtISO ? new Date(q.createdAtISO).toLocaleString() : "Just now"}
+                      </div>
+                    </Td>
+                    <Td>{q.role}</Td>
+                    <Td className="text-ink-muted">{q.email}</Td>
+                    <Td className="text-ink-muted">{q.message}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Advising call bookings"
+            description="Latest submissions from /book"
+            action={<Badge tone="primary">{bookings.length}</Badge>}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[13px]">
+              <thead className="bg-canvas/60 border-y border-line text-[11px] uppercase tracking-wider text-ink-subtle">
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Appointment</Th>
+                  <Th>Schedule</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {bookings.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-6 text-center text-ink-muted">
+                      No booking submissions yet.
+                    </td>
+                  </tr>
+                )}
+                {bookings.map((b) => (
+                  <tr key={b.id}>
+                    <Td>
+                      <div className="font-medium text-ink">
+                        {b.contactName || b.participantName || "Unknown"}
+                      </div>
+                      <div className="text-[12px] text-ink-subtle">
+                        {b.contactEmail || "No email"}
+                      </div>
+                    </Td>
+                    <Td>{b.appointmentType}</Td>
+                    <Td className="text-ink-muted">
+                      {b.scheduledDate} {b.scheduledTime} {b.timezone}
+                    </Td>
+                    <Td>
+                      <Badge tone="warn" size="sm">
+                        {b.status}
+                      </Badge>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
 
       <Card className="mb-6">

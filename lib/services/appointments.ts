@@ -33,6 +33,9 @@ export type AppointmentRow = {
   scheduledTime: string;
   timezone: string;
   mode: "Video" | "Phone" | "In-person";
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
   status: AppointmentStatus;
 };
 
@@ -103,6 +106,9 @@ function mapAppointment(id: string, data: AppointmentDoc): AppointmentRow {
     scheduledTime: data.scheduledTime,
     timezone: data.timezone,
     mode: data.mode ?? "Video",
+    contactName: data.contactName ?? null,
+    contactEmail: data.contactEmail ?? null,
+    contactPhone: data.contactPhone ?? null,
     status: data.status,
   };
 }
@@ -132,6 +138,19 @@ export function subscribeAppointmentsForParticipant(
       where("participantId", "==", participantId),
       orderBy("scheduledAt", "asc")
     ),
+    (snap) => {
+      cb(snap.docs.map((d) => mapAppointment(d.id, d.data() as AppointmentDoc)));
+    },
+    () => cb([])
+  );
+}
+
+export function subscribeRecentAppointments(
+  cb: (rows: AppointmentRow[]) => void,
+  max = 20
+): Unsubscribe {
+  return onSnapshot(
+    query(appointmentsCol(), orderBy("createdAt", "desc"), limit(max)),
     (snap) => {
       cb(snap.docs.map((d) => mapAppointment(d.id, d.data() as AppointmentDoc)));
     },

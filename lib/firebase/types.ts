@@ -148,7 +148,22 @@ export type AppointmentDoc = {
   scheduledTime: string;
   timezone: string;
   mode?: "Video" | "Phone" | "In-person";
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   status: AppointmentStatus;
+  createdAt?: AnyTimestamp;
+};
+
+export type ContactInquiryDoc = {
+  id?: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  message: string;
+  sourcePage: string;
+  status: "new" | "in-progress" | "resolved";
   createdAt?: AnyTimestamp;
 };
 
@@ -217,6 +232,7 @@ export const COLLECTIONS = {
   referrals: "referrals",
   advisors: "advisors",
   appointments: "appointments",
+  contactInquiries: "contact_inquiries",
   tasks: "tasks",
   notes: "notes",
   documents: "documents",

@@ -6,9 +6,17 @@ import { Button, LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Mail, Phone, MapPin, Check, ArrowRight } from "@/components/icons";
+import { submitContactInquiry } from "@/lib/services/contactInquiries";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState("");
+  const [message, setMessage] = useState("");
   return (
     <SiteShell>
       <PageHeader
@@ -44,9 +52,28 @@ export default function ContactPage() {
             ) : (
               <form
                 className="grid gap-5"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
-                  setSubmitted(true);
+                  if (submitting) return;
+                  setSubmitting(true);
+                  setError(null);
+                  try {
+                    await submitContactInquiry({
+                      name,
+                      email,
+                      phone,
+                      role,
+                      message,
+                    });
+                    setSubmitted(true);
+                  } catch (err) {
+                    console.error(err);
+                    setError(
+                      (err as Error)?.message ||
+                        "We couldn't send your message right now. Please try again."
+                    );
+                    setSubmitting(false);
+                  }
                 }}
               >
                 <h2 className="text-[20px] font-semibold tracking-tight">
@@ -54,7 +81,13 @@ export default function ContactPage() {
                 </h2>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field label="Your name" required htmlFor="c-name">
-                    <Input id="c-name" required placeholder="Full name" />
+                    <Input
+                      id="c-name"
+                      required
+                      placeholder="Full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
                   </Field>
                   <Field label="Email" required htmlFor="c-email">
                     <Input
@@ -62,6 +95,8 @@ export default function ContactPage() {
                       type="email"
                       required
                       placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </Field>
                 </div>
@@ -71,10 +106,17 @@ export default function ContactPage() {
                       id="c-phone"
                       type="tel"
                       placeholder="(201) 555-0123"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                     />
                   </Field>
                   <Field label="I'm reaching out as" htmlFor="c-role" required>
-                    <Select id="c-role" required defaultValue="">
+                    <Select
+                      id="c-role"
+                      required
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                    >
                       <option value="" disabled>
                         Select one
                       </option>
@@ -92,14 +134,21 @@ export default function ContactPage() {
                     rows={5}
                     required
                     placeholder="Briefly tell us what you're hoping to do."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
                   />
                 </Field>
+                {error && (
+                  <div className="rounded-md border border-danger/30 bg-danger-50 p-3 text-[13px] text-danger">
+                    {error}
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-line">
                   <p className="text-[12px] text-ink-subtle">
                     By sending, you agree to be contacted about your inquiry.
                   </p>
-                  <Button type="submit" variant="primary">
-                    Send message
+                  <Button type="submit" variant="primary" disabled={submitting}>
+                    {submitting ? "Sending..." : "Send message"}
                   </Button>
                 </div>
               </form>
