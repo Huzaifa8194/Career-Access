@@ -128,9 +128,9 @@ export default function BookPage() {
               Don&apos;t see a time that works? Email{" "}
               <a
                 className="text-primary"
-                href="mailto:hello@employreadypartners.org"
+                href="mailto:info@employreadypartners.com"
               >
-                hello@employreadypartners.org
+                info@employreadypartners.com
               </a>{" "}
               and we&apos;ll match you with an advisor.
             </p>

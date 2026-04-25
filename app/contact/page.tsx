@@ -186,7 +186,7 @@ export default function ContactPage() {
                     <div className="text-ink-subtle text-[12px] uppercase tracking-wider">
                       Email
                     </div>
-                    <div>hello@employreadypartners.org</div>
+                    <div>info@employreadypartners.com</div>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -197,7 +197,7 @@ export default function ContactPage() {
                     <div className="text-ink-subtle text-[12px] uppercase tracking-wider">
                       Phone
                     </div>
-                    <div>(201) 555-0190 · Mon–Fri, 9–5 ET</div>
+                    <div>908-652-4653</div>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -208,7 +208,7 @@ export default function ContactPage() {
                     <div className="text-ink-subtle text-[12px] uppercase tracking-wider">
                       Office
                     </div>
-                    <div>100 Hamilton Plaza, Paterson NJ 07505</div>
+                    <div>579 Main Street, Ste 100 Metuchen NJ 08840</div>
                   </div>
                 </li>
               </ul>
