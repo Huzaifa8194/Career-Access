@@ -21,7 +21,7 @@ export function FlowShell({
     <div className="min-h-screen flex flex-col bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <Brand size="sm" />
+          <Brand markOnly size="sm" className="shrink-0" />
           {steps && typeof current === "number" && (
             <div className="hidden md:block">
               <Stepper steps={steps} current={current} />

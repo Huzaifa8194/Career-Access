@@ -66,7 +66,7 @@ export default function PortalSignInPage() {
     <div className="min-h-screen flex flex-col bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-5 lg:px-8 h-14 flex items-center justify-between">
-          <Brand size="sm" />
+          <Brand markOnly size="sm" className="shrink-0" />
           <Link
             href="/"
             className="text-[13px] font-medium text-ink-muted hover:text-ink"
