@@ -70,7 +70,11 @@ export function TrustedPartnersSection() {
                     alt={`${p.name} logo`}
                     fill
                     sizes="(min-width: 1024px) 180px, (min-width: 640px) 30vw, 45vw"
-                    className="object-contain"
+                    className={`object-contain ${
+                      p.short === "Passaic One Stop"
+                        ? "brightness-150 contrast-150"
+                        : ""
+                    }`}
                   />
                 </div>
                 <span className="text-center text-[12px] font-medium leading-snug text-ink-muted">

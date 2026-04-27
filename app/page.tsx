@@ -186,11 +186,8 @@ function HeroAside() {
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent"
         />
-        <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/20 bg-black/45 px-4 py-3 backdrop-blur-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/85">
-            Career Access Hub
-          </p>
-          <p className="mt-1 text-[14px] leading-snug text-white">
+        <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/30 bg-black/70 px-4 py-2.5 backdrop-blur-sm">
+          <p className="text-[14px] leading-snug text-white">
             Local advising support for college, training, and apprenticeship
             pathways.
           </p>
