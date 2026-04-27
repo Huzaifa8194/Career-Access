@@ -61,10 +61,10 @@ export function TrustedPartnersSection() {
           {partners.map((p) => (
             <li key={p.name}>
               <div
-                className="group flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-5 shadow-[var(--shadow-card)] transition-colors hover:border-primary/25"
+                className="group flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:border-primary/35 hover:shadow-[var(--shadow-elevated)] active:border-primary/35"
                 title={p.name}
               >
-                <div className="relative h-12 w-full">
+                <div className="relative h-14 w-full overflow-hidden sm:h-12">
                   <Image
                     src={p.src}
                     alt={`${p.name} logo`}
@@ -74,10 +74,10 @@ export function TrustedPartnersSection() {
                       p.short === "Passaic One Stop"
                         ? "brightness-150 contrast-150"
                         : ""
-                    }`}
+                    } transition-transform duration-300 group-hover:scale-[1.75] group-active:scale-[1.75] group-focus-within:scale-[1.75]`}
                   />
                 </div>
-                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted">
+                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted transition-all duration-300 group-hover:text-[16px] group-hover:font-semibold group-hover:text-ink group-active:text-[16px] group-active:font-semibold group-active:text-ink group-focus-within:text-[16px] group-focus-within:font-semibold group-focus-within:text-ink">
                   {p.short}
                 </span>
               </div>
