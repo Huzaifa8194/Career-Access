@@ -61,10 +61,10 @@ export function TrustedPartnersSection() {
           {partners.map((p) => (
             <li key={p.name}>
               <div
-                className="group flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:border-primary/35 hover:shadow-[var(--shadow-elevated)] active:border-primary/35"
+                className="group flex h-full min-h-[9.25rem] flex-col items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--shadow-elevated)] active:border-primary/35 sm:min-h-[8.75rem]"
                 title={p.name}
               >
-                <div className="relative h-14 w-full overflow-hidden sm:h-12">
+                <div className="relative h-14 w-full transition-[height] duration-300 group-hover:h-[4.25rem] group-active:h-[4.25rem] sm:h-12 sm:group-hover:h-16 sm:group-active:h-16">
                   <Image
                     src={p.src}
                     alt={`${p.name} logo`}
@@ -74,10 +74,10 @@ export function TrustedPartnersSection() {
                       p.short === "Passaic One Stop"
                         ? "brightness-150 contrast-150"
                         : ""
-                    } transition-transform duration-300 group-hover:scale-[1.75] group-active:scale-[1.75] group-focus-within:scale-[1.75]`}
+                    }`}
                   />
                 </div>
-                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted transition-all duration-300 group-hover:text-[16px] group-hover:font-semibold group-hover:text-ink group-active:text-[16px] group-active:font-semibold group-active:text-ink group-focus-within:text-[16px] group-focus-within:font-semibold group-focus-within:text-ink">
+                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted transition-all duration-300 group-hover:text-[14px] group-hover:font-semibold group-hover:text-ink group-active:text-[14px] group-active:font-semibold group-active:text-ink sm:group-hover:text-[15px] sm:group-active:text-[15px]">
                   {p.short}
                 </span>
               </div>

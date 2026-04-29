@@ -182,16 +182,12 @@ function HeroAside() {
           sizes="(min-width: 1024px) 430px, (min-width: 768px) 45vw, 100vw"
           className="object-cover"
         />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent"
-        />
-        <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/30 bg-black/70 px-4 py-2.5 backdrop-blur-sm">
-          <p className="text-[14px] leading-snug text-white">
-            Local advising support for college, training, and apprenticeship
-            pathways.
-          </p>
-        </div>
+      </div>
+      <div className="border-t border-line bg-canvas px-4 py-3 sm:px-5">
+        <p className="text-[14px] leading-snug text-ink">
+          Local advising support for college, training, and apprenticeship
+          pathways.
+        </p>
       </div>
     </div>
   );

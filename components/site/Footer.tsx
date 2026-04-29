@@ -45,6 +45,7 @@ export function Footer() {
           <FooterColumn
             title="Program"
             links={[
+              { href: "/", label: "Home" },
               { href: "/services", label: "Services" },
               { href: "/how-it-works", label: "How it works" },
               { href: "/partners", label: "For partners" },
@@ -58,15 +59,16 @@ export function Footer() {
               { href: "/refer", label: "Refer a Participant" },
               { href: "/book", label: "Book an Advising Call" },
               { href: "/portal", label: "Sign in" },
+              { href: "/portal/sign-up", label: "Create account" },
             ]}
           />
           <FooterColumn
             title="Help"
             links={[
               { href: "/contact", label: "Contact" },
-              { href: "#", label: "Accessibility" },
-              { href: "#", label: "Privacy" },
-              { href: "#", label: "Terms" },
+              { href: "/portal", label: "Portal access" },
+              { href: "/book", label: "Advisor scheduling" },
+              { href: "/refer", label: "Partner referrals" },
             ]}
           />
         </div>
