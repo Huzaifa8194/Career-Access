@@ -55,25 +55,25 @@ export function TrustedPartnersSection() {
         </div>
 
         <ul
-          className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6"
+          className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6"
           role="list"
         >
           {partners.map((p) => (
             <li key={p.name}>
               <div
-                className="group flex h-full min-h-[9.25rem] flex-col items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--shadow-elevated)] active:border-primary/35 sm:min-h-[8.75rem]"
+                className="group flex h-full min-h-[10.5rem] flex-col items-center justify-between gap-3 rounded-lg border border-line bg-white px-4 py-4 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[var(--shadow-elevated)] sm:min-h-[10rem]"
                 title={p.name}
               >
-                <div className="relative h-14 w-full transition-[height] duration-300 group-hover:h-[4.25rem] group-active:h-[4.25rem] sm:h-12 sm:group-hover:h-16 sm:group-active:h-16">
+                <div className="relative h-20 w-full sm:h-[4.75rem]">
                   <Image
                     src={p.src}
                     alt={`${p.name} logo`}
                     fill
-                    sizes="(min-width: 1024px) 180px, (min-width: 640px) 30vw, 45vw"
+                    sizes="(min-width: 1280px) 180px, (min-width: 1024px) 30vw, (min-width: 640px) 30vw, 45vw"
                     className="object-contain"
                   />
                 </div>
-                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted transition-all duration-300 group-hover:text-[14px] group-hover:font-semibold group-hover:text-ink group-active:text-[14px] group-active:font-semibold group-active:text-ink sm:group-hover:text-[15px] sm:group-active:text-[15px]">
+                <span className="text-center text-[12px] font-medium leading-snug text-ink-muted transition-colors duration-300 group-hover:text-ink">
                   {p.short}
                 </span>
               </div>
