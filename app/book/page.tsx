@@ -19,6 +19,7 @@ import {
   fetchParticipantByEmail,
   fetchParticipantByUserId,
 } from "@/lib/services/participants";
+import { sendNotificationEmail } from "@/lib/services/notifications";
 
 const steps = [{ label: "Schedule" }, { label: "Confirmation" }];
 
@@ -96,6 +97,16 @@ export default function BookPage() {
         mode: "Video",
         reference: `CA-APT-${date.replace(/-/g, "")}-${id.slice(-6).toUpperCase()}`,
       });
+      await sendNotificationEmail("appointment-booked", {
+        name,
+        email,
+        date,
+        time,
+        timezone,
+        appointmentType,
+      }).catch((notifyErr) => {
+        console.warn("Appointment email notification failed", notifyErr);
+      });
       router.push("/book/confirmation");
     } catch (err) {
       console.error(err);
@@ -126,11 +137,8 @@ export default function BookPage() {
           <FlowSidebar title="Need a different time?">
             <p className="text-[13px] text-ink-muted leading-6">
               Don&apos;t see a time that works? Email{" "}
-              <a
-                className="text-primary"
-                href="mailto:info@employreadypartners.com"
-              >
-                info@employreadypartners.com
+              <a className="text-primary" href="mailto:info@employreadypartners.com">
+              info@employreadypartners.com
               </a>{" "}
               and we&apos;ll match you with an advisor.
             </p>

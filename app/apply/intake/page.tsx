@@ -23,6 +23,7 @@ import { applyFlow, type IntakeAnswers } from "@/lib/flowState";
 import { createParticipantFromApplication } from "@/lib/services/participants";
 import { uploadParticipantDocument } from "@/lib/services/documents";
 import { useAuth } from "@/lib/firebase/auth";
+import { sendNotificationEmail } from "@/lib/services/notifications";
 
 const steps = [
   { label: "Eligibility" },
@@ -164,15 +165,26 @@ export default function IntakePage() {
       }
 
       const submittedAt = new Date().toISOString();
+      const referenceId = `CA-${submittedAt.slice(0, 10)}-${result.participantId.slice(-6).toUpperCase()}`;
       applyFlow.setConfirmation({
         participantId: result.participantId,
         applicationId: result.applicationId,
         pathway: result.pathway,
-        referenceId: `CA-${submittedAt.slice(0, 10)}-${result.participantId.slice(-6).toUpperCase()}`,
+        referenceId,
         email,
         firstName,
         lastName,
         submittedAt,
+      });
+
+      await sendNotificationEmail("application-submitted", {
+        firstName,
+        lastName,
+        email,
+        referenceId,
+        pathway: result.pathway,
+      }).catch((notifyErr) => {
+        console.warn("Application email notification failed", notifyErr);
       });
 
       router.push("/apply/confirmation");

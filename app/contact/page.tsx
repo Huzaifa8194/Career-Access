@@ -11,6 +11,7 @@ import { submitContactInquiry } from "@/lib/services/contactInquiries";
 import { submitAppointment } from "@/lib/services/appointments";
 import { bookFlow } from "@/lib/flowState";
 import { useAuth } from "@/lib/firebase/auth";
+import { sendNotificationEmail } from "@/lib/services/notifications";
 import {
   fetchParticipantByEmail,
   fetchParticipantByUserId,
@@ -81,6 +82,15 @@ export default function ContactPage() {
                       phone,
                       role,
                       message,
+                    });
+                    await sendNotificationEmail("contact-inquiry", {
+                      name,
+                      email,
+                      phone,
+                      role,
+                      message,
+                    }).catch((notifyErr) => {
+                      console.warn("Contact email notification failed", notifyErr);
                     });
                     setSubmitted(true);
                   } catch (err) {
@@ -283,6 +293,16 @@ export default function ContactPage() {
                       contactEmail: email,
                       mode: "Video",
                       reference: `CA-APT-${bookingDate.replace(/-/g, "")}-${id.slice(-6).toUpperCase()}`,
+                    });
+                    await sendNotificationEmail("appointment-booked", {
+                      name,
+                      email,
+                      date: bookingDate,
+                      time: bookingTime,
+                      timezone: "ET",
+                      appointmentType: bookingType,
+                    }).catch((notifyErr) => {
+                      console.warn("Appointment email notification failed", notifyErr);
                     });
                     router.push("/book/confirmation");
                   } catch (err) {

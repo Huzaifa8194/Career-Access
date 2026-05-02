@@ -19,6 +19,7 @@ import {
 import { ArrowRight } from "@/components/icons";
 import { submitReferral } from "@/lib/services/referrals";
 import { referralFlow } from "@/lib/flowState";
+import { sendNotificationEmail } from "@/lib/services/notifications";
 
 const steps = [{ label: "Referral" }, { label: "Confirmation" }];
 
@@ -70,6 +71,17 @@ export default function ReferPage() {
         applicantFirstName,
         applicantLastName,
         organizationName,
+      });
+      await sendNotificationEmail("referral-submitted", {
+        referrerName,
+        email,
+        organizationName,
+        applicantFirstName,
+        applicantLastName,
+        applicantEmail,
+        urgency,
+      }).catch((notifyErr) => {
+        console.warn("Referral email notification failed", notifyErr);
       });
       router.push("/refer/confirmation");
     } catch (err) {
